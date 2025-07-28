@@ -3,7 +3,7 @@
 import { useState } from "react"
 import { format, endOfWeek } from "date-fns"
 import { zhCN } from "date-fns/locale"
-import { Sparkles, Copy, Download, Loader2, Settings } from "lucide-react"
+import { Sparkles, Copy, Download, Loader2, Settings, FileText, ImageIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -18,6 +18,9 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { generateAIWeeklyReport, isAIConfigured } from "@/lib/ai-report-generator"
 import { AIConfigDialog } from "@/components/ai-config-dialog"
 import type { WorkItem } from "@/lib/data-manager"
+import { Badge } from "@/components/ui/badge"
+import { AIReportSettingsDialog } from "@/components/ai-report-settings-dialog"
+import { defaultReportSettings, type ReportSettings } from "@/lib/report-generator"
 
 interface AIReportDialogProps {
   workItems: WorkItem[]
@@ -30,6 +33,8 @@ export function AIReportDialog({ workItems, weekStart }: AIReportDialogProps) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [configured, setConfigured] = useState(isAIConfigured())
+  const [aiReportData, setAiReportData] = useState<{ text: string; images: any[] } | null>(null)
+  const [reportSettings, setReportSettings] = useState<ReportSettings>(defaultReportSettings)
 
   const weekEnd = endOfWeek(weekStart, { weekStartsOn: 1 })
 
@@ -48,8 +53,9 @@ export function AIReportDialog({ workItems, weekStart }: AIReportDialogProps) {
     setError(null)
 
     try {
-      const report = await generateAIWeeklyReport(workItems, weekStart)
-      setAiReport(report)
+      const reportData = await generateAIWeeklyReport(workItems, weekStart)
+      setAiReport(reportData.text)
+      setAiReportData(reportData)
     } catch (error: any) {
       setError(error.message || "生成AI周报失败")
     } finally {
@@ -76,6 +82,19 @@ export function AIReportDialog({ workItems, weekStart }: AIReportDialogProps) {
     link.click()
     document.body.removeChild(link)
     window.URL.revokeObjectURL(url)
+  }
+
+  const handleDownloadDocx = async () => {
+    if (!aiReportData) return
+
+    try {
+      const { generateAIWeeklyReportDocx } = await import("@/lib/ai-docx-generator")
+
+      await generateAIWeeklyReportDocx(aiReportData.text, aiReportData.images, weekStart, reportSettings)
+    } catch (error) {
+      console.error("导出DOCX失败:", error)
+      alert("导出DOCX失败，请重试")
+    }
   }
 
   const handleConfigChange = () => {
@@ -151,16 +170,53 @@ export function AIReportDialog({ workItems, weekStart }: AIReportDialogProps) {
                   <Download className="h-4 w-4 mr-2" />
                   下载文本
                 </Button>
+                <Button variant="outline" size="sm" onClick={handleDownloadDocx}>
+                  <FileText className="h-4 w-4 mr-2" />
+                  导出DOCX
+                </Button>
                 <Button variant="outline" size="sm" onClick={handleGenerateAIReport}>
                   <Sparkles className="h-4 w-4 mr-2" />
                   重新生成
                 </Button>
+                <AIReportSettingsDialog settings={reportSettings} onSettingsChange={setReportSettings} />
                 <AIConfigDialog onConfigChange={handleConfigChange} />
               </div>
 
               <Card>
                 <CardContent className="p-6">
-                  <pre className="whitespace-pre-wrap text-sm leading-relaxed font-sans">{aiReport}</pre>
+                  <div className="space-y-4">
+                    {/* 显示图片统计 */}
+                    {aiReportData && aiReportData.images.length > 0 && (
+                      <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                        <div className="flex items-center gap-2 mb-2">
+                          <ImageIcon className="h-4 w-4 text-blue-600" />
+                          <span className="font-medium text-blue-800">包含图片资料</span>
+                          <Badge className="bg-blue-500">{aiReportData.images.length}张</Badge>
+                        </div>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                          {aiReportData.images.slice(0, 8).map((img, index) => (
+                            <div key={index} className="relative">
+                              <img
+                                src={img.url || "/placeholder.svg?height=60&width=60"}
+                                alt={`工作图片 ${index + 1}`}
+                                className="w-full h-16 object-cover rounded border"
+                              />
+                              <div className="absolute bottom-0 left-0 right-0 bg-black/70 text-white text-xs p-1 rounded-b">
+                                {img.category}
+                              </div>
+                            </div>
+                          ))}
+                          {aiReportData.images.length > 8 && (
+                            <div className="w-full h-16 bg-gray-200 rounded border flex items-center justify-center text-sm text-gray-600">
+                              +{aiReportData.images.length - 8}张
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    <pre className="whitespace-pre-wrap text-sm leading-relaxed font-sans">{aiReport}</pre>
+                  </div>
                 </CardContent>
               </Card>
             </div>
