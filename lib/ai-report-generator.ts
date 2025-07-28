@@ -1,8 +1,15 @@
 import { generateText } from "ai"
-import { openai } from "@ai-sdk/openai"
+import { createOpenAI } from "@ai-sdk/openai"
 import type { WorkItem } from "@/lib/data-manager"
 import { format } from "date-fns"
 import { zhCN } from "date-fns/locale"
+
+// 创建DeepSeek客户端
+const deepseek = createOpenAI({
+  name: "deepseek",
+  apiKey: process.env.NEXT_PUBLIC_DEEPSEEK_API_KEY || "your-deepseek-api-key",
+  baseURL: "https://api.deepseek.com",
+})
 
 export async function generateAIWeeklyReport(workItems: WorkItem[], weekStart: Date): Promise<string> {
   const weekEnd = new Date(weekStart.getTime() + 6 * 24 * 60 * 60 * 1000)
@@ -35,6 +42,7 @@ ${Object.entries(categorizedItems)
 3. 合理归纳和总结
 4. 保持原有的五个分类结构
 5. 如果某个分类没有内容，请写"本周暂无相关工作"
+6. 使用中文回答
 
 格式要求：
 一、日常审计
@@ -55,7 +63,7 @@ ${Object.entries(categorizedItems)
 
   try {
     const { text } = await generateText({
-      model: openai("gpt-4o"),
+      model: deepseek("deepseek-chat"),
       prompt,
       temperature: 0.7,
       maxTokens: 2000,
@@ -63,8 +71,8 @@ ${Object.entries(categorizedItems)
 
     return text
   } catch (error) {
-    console.error("AI生成周报失败:", error)
-    throw new Error("AI生成周报失败，请检查网络连接或稍后重试")
+    console.error("DeepSeek生成周报失败:", error)
+    throw new Error("AI生成周报失败，请检查网络连接或API配置")
   }
 }
 
@@ -86,7 +94,7 @@ export async function optimizeWorkContent(content: string): Promise<string> {
 
   try {
     const { text } = await generateText({
-      model: openai("gpt-4o"),
+      model: deepseek("deepseek-chat"),
       prompt,
       temperature: 0.5,
       maxTokens: 200,
@@ -94,7 +102,13 @@ export async function optimizeWorkContent(content: string): Promise<string> {
 
     return text.trim()
   } catch (error) {
-    console.error("AI优化内容失败:", error)
-    throw new Error("AI优化失败")
+    console.error("DeepSeek优化内容失败:", error)
+    throw new Error("AI优化失败，请检查API配置")
   }
+}
+
+// 检查DeepSeek API是否配置
+export function isDeepSeekConfigured(): boolean {
+  const apiKey = process.env.NEXT_PUBLIC_DEEPSEEK_API_KEY
+  return !!(apiKey && apiKey !== "your-deepseek-api-key")
 }
