@@ -5,16 +5,19 @@ import type React from "react"
 import { useState, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
-import { Upload, X, ImageIcon, Loader2 } from "lucide-react"
+import { Upload, X, ImageIcon, Loader2, Eye, Download } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog"
+import { Badge } from "@/components/ui/badge"
 
 interface ImageUploadProps {
   images: string[]
   onImagesChange: (images: string[]) => void
   maxImages?: number
+  maxSizeInMB?: number
 }
 
-export function ImageUpload({ images, onImagesChange, maxImages = 5 }: ImageUploadProps) {
+export function ImageUpload({ images, onImagesChange, maxImages = 5, maxSizeInMB = 10 }: ImageUploadProps) {
   const [uploading, setUploading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -24,9 +27,9 @@ export function ImageUpload({ images, onImagesChange, maxImages = 5 }: ImageUplo
       setUploading(true)
       setError(null)
 
-      // 检查文件大小 (最大 5MB)
-      if (file.size > 5 * 1024 * 1024) {
-        throw new Error("图片大小不能超过 5MB")
+      // 检查文件大小
+      if (file.size > maxSizeInMB * 1024 * 1024) {
+        throw new Error(`图片大小不能超过 ${maxSizeInMB}MB`)
       }
 
       // 检查文件类型
@@ -34,7 +37,7 @@ export function ImageUpload({ images, onImagesChange, maxImages = 5 }: ImageUplo
         throw new Error("只能上传图片文件")
       }
 
-      // 将图片转换为base64
+      // 直接转换为base64，不进行压缩
       const reader = new FileReader()
       reader.onload = (e) => {
         const result = e.target?.result as string
@@ -53,12 +56,37 @@ export function ImageUpload({ images, onImagesChange, maxImages = 5 }: ImageUplo
     onImagesChange(newImages)
   }
 
+  const downloadImage = (imageUrl: string, index: number) => {
+    const link = document.createElement("a")
+    link.href = imageUrl
+    link.download = `工作图片_${index + 1}.png`
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+  }
+
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || [])
     files.forEach(uploadImage)
     if (fileInputRef.current) {
       fileInputRef.current.value = ""
     }
+  }
+
+  const getImageSize = (imageUrl: string): Promise<{ width: number; height: number; size: string }> => {
+    return new Promise((resolve) => {
+      const img = new Image()
+      img.onload = () => {
+        const sizeInBytes = Math.round((imageUrl.length * 3) / 4)
+        const sizeInMB = (sizeInBytes / (1024 * 1024)).toFixed(2)
+        resolve({
+          width: img.width,
+          height: img.height,
+          size: sizeInMB + "MB",
+        })
+      }
+      img.src = imageUrl
+    })
   }
 
   return (
@@ -73,6 +101,7 @@ export function ImageUpload({ images, onImagesChange, maxImages = 5 }: ImageUplo
           size="sm"
           onClick={() => fileInputRef.current?.click()}
           disabled={uploading || images.length >= maxImages}
+          className="bg-gradient-to-r from-blue-500 to-purple-600 text-white border-0 hover:from-blue-600 hover:to-purple-700"
         >
           {uploading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Upload className="h-4 w-4 mr-2" />}
           上传图片
@@ -90,22 +119,49 @@ export function ImageUpload({ images, onImagesChange, maxImages = 5 }: ImageUplo
       {images.length > 0 && (
         <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
           {images.map((imageUrl, index) => (
-            <Card key={index} className="relative group overflow-hidden">
+            <Card
+              key={index}
+              className="relative group overflow-hidden border-2 border-gray-200 hover:border-blue-300 transition-all duration-200 hover:shadow-lg"
+            >
               <div className="aspect-square relative">
                 <img
                   src={imageUrl || "/placeholder.svg?height=150&width=150&query=uploaded image"}
                   alt={`上传的图片 ${index + 1}`}
                   className="w-full h-full object-cover"
                 />
-                <Button
-                  type="button"
-                  variant="destructive"
-                  size="sm"
-                  className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity"
-                  onClick={() => removeImage(index)}
-                >
-                  <X className="h-3 w-3" />
-                </Button>
+                <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center justify-center gap-2">
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <Button size="sm" variant="secondary" className="bg-white/90 hover:bg-white">
+                        <Eye className="h-3 w-3" />
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-4xl max-h-[90vh] overflow-auto">
+                      <img
+                        src={imageUrl || "/placeholder.svg"}
+                        alt={`工作图片 ${index + 1}`}
+                        className="w-full h-auto"
+                      />
+                    </DialogContent>
+                  </Dialog>
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    onClick={() => downloadImage(imageUrl, index)}
+                    className="bg-white/90 hover:bg-white"
+                  >
+                    <Download className="h-3 w-3" />
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="destructive"
+                    onClick={() => removeImage(index)}
+                    className="bg-red-500/90 hover:bg-red-500"
+                  >
+                    <X className="h-3 w-3" />
+                  </Button>
+                </div>
+                <Badge className="absolute top-2 left-2 bg-black/70 text-white text-xs">{index + 1}</Badge>
               </div>
             </Card>
           ))}
@@ -113,10 +169,13 @@ export function ImageUpload({ images, onImagesChange, maxImages = 5 }: ImageUplo
       )}
 
       {images.length === 0 && (
-        <Card className="border-dashed border-2 border-gray-300">
+        <Card className="border-dashed border-2 border-gray-300 hover:border-blue-400 transition-colors duration-200">
           <div className="p-8 text-center">
-            <ImageIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-            <p className="text-gray-500 text-sm">暂无图片，点击上传按钮添加图片</p>
+            <div className="w-16 h-16 mx-auto mb-4 bg-gradient-to-br from-blue-100 to-purple-100 rounded-full flex items-center justify-center">
+              <ImageIcon className="h-8 w-8 text-blue-600" />
+            </div>
+            <p className="text-gray-500 text-sm mb-2">暂无图片，点击上传按钮添加图片</p>
+            <p className="text-xs text-gray-400">支持 JPG、PNG、GIF 格式，最大 {maxSizeInMB}MB</p>
           </div>
         </Card>
       )}
