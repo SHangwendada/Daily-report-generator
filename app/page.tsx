@@ -12,7 +12,10 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { AuthForm } from "@/components/auth/auth-form"
 import { AddWorkDialog } from "@/components/add-work-dialog"
 import { WeeklyReportDialog } from "@/components/weekly-report-dialog"
-import { generateWeeklyReport } from "@/lib/report-generator"
+import { EditWorkDialog } from "@/components/edit-work-dialog"
+import { ReportSettingsDialog } from "@/components/report-settings-dialog"
+import { AIReportDialog } from "@/components/ai-report-dialog"
+import { generateWeeklyReport, defaultReportSettings, type ReportSettings } from "@/lib/report-generator"
 import { userManager, type UserSession } from "@/lib/user-manager"
 import { dataManager, type WorkItem } from "@/lib/data-manager"
 
@@ -24,6 +27,8 @@ export default function HomePage() {
   const [showAddDialog, setShowAddDialog] = useState(false)
   const [showReportDialog, setShowReportDialog] = useState(false)
   const [currentWeekStart, setCurrentWeekStart] = useState(startOfWeek(new Date(), { weekStartsOn: 1 }))
+  const [editingItem, setEditingItem] = useState<WorkItem | null>(null)
+  const [reportSettings, setReportSettings] = useState<ReportSettings>(defaultReportSettings)
 
   useEffect(() => {
     // 检查用户登录状态
@@ -66,6 +71,15 @@ export default function HomePage() {
     }
   }
 
+  const updateWorkItem = (updatedItem: WorkItem) => {
+    if (!user) return
+
+    const success = dataManager.updateWorkItem(user.id, updatedItem.id, updatedItem)
+    if (success) {
+      setWorkItems((prev) => prev.map((item) => (item.id === updatedItem.id ? updatedItem : item)))
+    }
+  }
+
   const handleSignOut = () => {
     userManager.logout()
     setUser(null)
@@ -91,7 +105,7 @@ export default function HomePage() {
 
   const handleGenerateReport = async () => {
     const weekItems = getCurrentWeekItems()
-    await generateWeeklyReport(weekItems, currentWeekStart)
+    await generateWeeklyReport(weekItems, currentWeekStart, reportSettings)
   }
 
   const goToPreviousWeek = () => {
@@ -229,14 +243,24 @@ export default function HomePage() {
                                       </div>
                                     )}
                                   </div>
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => deleteWorkItem(item.id)}
-                                    className="text-red-500 hover:text-red-700"
-                                  >
-                                    删除
-                                  </Button>
+                                  <div className="flex gap-2">
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => setEditingItem(item)}
+                                      className="text-blue-500 hover:text-blue-700"
+                                    >
+                                      编辑
+                                    </Button>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => deleteWorkItem(item.id)}
+                                      className="text-red-500 hover:text-red-700"
+                                    >
+                                      删除
+                                    </Button>
+                                  </div>
                                 </div>
                               ))}
                             </div>
@@ -275,7 +299,7 @@ export default function HomePage() {
                     })}
                   </div>
 
-                  <div className="flex gap-4">
+                  <div className="flex gap-2">
                     <Button onClick={handleGenerateReport} className="flex-1">
                       <Download className="h-4 w-4 mr-2" />
                       生成并下载周报 (DOCX)
@@ -283,6 +307,8 @@ export default function HomePage() {
                     <Button variant="outline" onClick={() => setShowReportDialog(true)}>
                       预览周报
                     </Button>
+                    <AIReportDialog workItems={getCurrentWeekItems()} weekStart={currentWeekStart} />
+                    <ReportSettingsDialog settings={reportSettings} onSettingsChange={setReportSettings} />
                   </div>
                 </div>
               </CardContent>
@@ -303,6 +329,14 @@ export default function HomePage() {
           workItems={getCurrentWeekItems()}
           weekStart={currentWeekStart}
         />
+        {editingItem && (
+          <EditWorkDialog
+            open={!!editingItem}
+            onOpenChange={(open) => !open && setEditingItem(null)}
+            onUpdate={updateWorkItem}
+            workItem={editingItem}
+          />
+        )}
       </div>
     </div>
   )

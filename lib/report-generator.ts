@@ -3,7 +3,29 @@ import { format, endOfWeek } from "date-fns"
 import { zhCN } from "date-fns/locale"
 import type { WorkItem } from "@/lib/data-manager"
 
-export async function generateWeeklyReport(workItems: WorkItem[], weekStart: Date) {
+export interface ReportSettings {
+  fontFamily: string
+  fontSize: number
+  titleFontSize: number
+  headingFontSize: number
+  lineSpacing: number
+  includeImages: boolean
+}
+
+export const defaultReportSettings: ReportSettings = {
+  fontFamily: "宋体",
+  fontSize: 12,
+  titleFontSize: 18,
+  headingFontSize: 14,
+  lineSpacing: 1.5,
+  includeImages: true,
+}
+
+export async function generateWeeklyReport(
+  workItems: WorkItem[],
+  weekStart: Date,
+  settings: ReportSettings = defaultReportSettings,
+) {
   const weekEnd = endOfWeek(weekStart, { weekStartsOn: 1 })
   const weekRange = `${format(weekStart, "yyyy年MM月dd日", { locale: zhCN })} - ${format(weekEnd, "yyyy年MM月dd日", { locale: zhCN })}`
 
@@ -21,9 +43,21 @@ export async function generateWeeklyReport(workItems: WorkItem[], weekStart: Dat
 
   const children = [
     new Paragraph({
-      text: `周报 (${weekRange})`,
+      children: [
+        new TextRun({
+          text: `周报 (${weekRange})`,
+          font: settings.fontFamily,
+          size: settings.titleFontSize * 2, // docx uses half-points
+          bold: true,
+        }),
+      ],
       heading: HeadingLevel.TITLE,
-      spacing: { after: 400 },
+      spacing: {
+        after: 400,
+        line: Math.round(settings.lineSpacing * 240),
+        lineRule: "auto",
+      },
+      alignment: "center",
     }),
   ]
 
@@ -33,9 +67,20 @@ export async function generateWeeklyReport(workItems: WorkItem[], weekStart: Dat
     // 添加标题
     children.push(
       new Paragraph({
-        text: title,
-        heading: HeadingLevel.HEADING_1,
-        spacing: { before: 300, after: 200 },
+        children: [
+          new TextRun({
+            text: title,
+            font: settings.fontFamily,
+            size: settings.headingFontSize * 2,
+            bold: true,
+          }),
+        ],
+        spacing: {
+          before: 300,
+          after: 200,
+          line: Math.round(settings.lineSpacing * 240),
+          lineRule: "auto",
+        },
       }),
     )
 
@@ -43,8 +88,19 @@ export async function generateWeeklyReport(workItems: WorkItem[], weekStart: Dat
     if (items.length === 0) {
       children.push(
         new Paragraph({
-          text: "暂无内容",
-          spacing: { after: 200 },
+          children: [
+            new TextRun({
+              text: "暂无内容",
+              font: settings.fontFamily,
+              size: settings.fontSize * 2,
+              italics: true,
+            }),
+          ],
+          spacing: {
+            after: 200,
+            line: Math.round(settings.lineSpacing * 240),
+            lineRule: "auto",
+          },
         }),
       )
     } else {
@@ -55,18 +111,22 @@ export async function generateWeeklyReport(workItems: WorkItem[], weekStart: Dat
             children: [
               new TextRun({
                 text: `• ${item.content}`,
-                size: 24,
+                font: settings.fontFamily,
+                size: settings.fontSize * 2,
               }),
             ],
-            spacing: { after: 100 },
+            spacing: {
+              after: 100,
+              line: Math.round(settings.lineSpacing * 240),
+              lineRule: "auto",
+            },
           }),
         )
 
-        // 添加图片（如果有）
-        if (item.images && item.images.length > 0) {
+        // 添加图片（如果启用且有图片）
+        if (settings.includeImages && item.images && item.images.length > 0) {
           for (const imageUrl of item.images) {
             try {
-              // 对于base64图片，需要转换为ArrayBuffer
               if (imageUrl.startsWith("data:image/")) {
                 const base64Data = imageUrl.split(",")[1]
                 const binaryString = atob(base64Data)
@@ -86,7 +146,11 @@ export async function generateWeeklyReport(workItems: WorkItem[], weekStart: Dat
                         },
                       }),
                     ],
-                    spacing: { after: 100 },
+                    spacing: {
+                      after: 100,
+                      line: Math.round(settings.lineSpacing * 240),
+                      lineRule: "auto",
+                    },
                   }),
                 )
               }
