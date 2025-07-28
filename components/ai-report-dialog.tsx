@@ -15,8 +15,8 @@ import {
 } from "@/components/ui/dialog"
 import { Card, CardContent } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { generateAIWeeklyReport, isDeepSeekConfigured } from "@/lib/ai-report-generator"
-import { AIConfigCheck } from "@/components/ai-config-check"
+import { generateAIWeeklyReport, isAIConfigured } from "@/lib/ai-report-generator"
+import { AIConfigDialog } from "@/components/ai-config-dialog"
 import type { WorkItem } from "@/lib/data-manager"
 
 interface AIReportDialogProps {
@@ -29,14 +29,13 @@ export function AIReportDialog({ workItems, weekStart }: AIReportDialogProps) {
   const [aiReport, setAiReport] = useState<string>("")
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [showConfigCheck, setShowConfigCheck] = useState(false)
+  const [configured, setConfigured] = useState(isAIConfigured())
 
   const weekEnd = endOfWeek(weekStart, { weekStartsOn: 1 })
-  const isConfigured = isDeepSeekConfigured()
 
   const handleGenerateAIReport = async () => {
-    if (!isConfigured) {
-      setShowConfigCheck(true)
+    if (!configured) {
+      setError("请先配置AI模型")
       return
     }
 
@@ -72,107 +71,102 @@ export function AIReportDialog({ workItems, weekStart }: AIReportDialogProps) {
     const url = window.URL.createObjectURL(blob)
     const link = document.createElement("a")
     link.href = url
-    link.download = `DeepSeek智能周报_${format(weekStart, "yyyy年MM月dd日", { locale: zhCN })}.txt`
+    link.download = `AI智能周报_${format(weekStart, "yyyy年MM月dd日", { locale: zhCN })}.txt`
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)
     window.URL.revokeObjectURL(url)
   }
 
+  const handleConfigChange = () => {
+    setConfigured(isAIConfigured())
+  }
+
   return (
-    <>
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogTrigger asChild>
-          <Button variant="outline">
-            <Sparkles className="h-4 w-4 mr-2" />
-            DeepSeek智能周报
-          </Button>
-        </DialogTrigger>
-        <DialogContent className="sm:max-w-[700px] max-h-[80vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Sparkles className="h-5 w-5 text-purple-600" />
-              DeepSeek智能周报生成
-            </DialogTitle>
-            <DialogDescription>
-              基于本周工作记录，使用DeepSeek AI智能生成专业周报
-              <br />
-              {format(weekStart, "yyyy年MM月dd日", { locale: zhCN })} -{" "}
-              {format(weekEnd, "yyyy年MM月dd日", { locale: zhCN })}
-            </DialogDescription>
-          </DialogHeader>
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button variant="outline">
+          <Sparkles className="h-4 w-4 mr-2" />
+          AI智能周报
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-[700px] max-h-[80vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Sparkles className="h-5 w-5" />
+            AI智能周报生成
+          </DialogTitle>
+          <DialogDescription>
+            基于本周工作记录，使用AI智能生成专业周报
+            <br />
+            {format(weekStart, "yyyy年MM月dd日", { locale: zhCN })} -{" "}
+            {format(weekEnd, "yyyy年MM月dd日", { locale: zhCN })}
+          </DialogDescription>
+        </DialogHeader>
 
-          <div className="space-y-4">
-            {!isConfigured && (
-              <Alert className="border-purple-200 bg-purple-50">
-                <Settings className="h-4 w-4" />
-                <AlertDescription className="text-purple-700">
-                  需要配置 DeepSeek API Key 才能使用 AI 功能。
-                  <Button
-                    variant="link"
-                    className="p-0 h-auto text-purple-700 underline"
-                    onClick={() => setShowConfigCheck(true)}
-                  >
-                    点击配置
-                  </Button>
-                </AlertDescription>
-              </Alert>
-            )}
+        <div className="space-y-4">
+          {!configured && (
+            <Alert className="border-orange-200 bg-orange-50">
+              <Settings className="h-4 w-4" />
+              <AlertDescription className="text-orange-700 flex items-center justify-between">
+                <span>需要先配置AI模型才能使用智能周报功能</span>
+                <AIConfigDialog onConfigChange={handleConfigChange} />
+              </AlertDescription>
+            </Alert>
+          )}
 
-            {!aiReport && !loading && (
-              <div className="text-center py-8">
-                <Sparkles className="h-12 w-12 text-purple-500 mx-auto mb-4" />
-                <p className="text-gray-600 mb-4">点击下方按钮，让DeepSeek AI为您生成专业的周报总结</p>
-                <Button onClick={handleGenerateAIReport} disabled={workItems.length === 0}>
-                  <Sparkles className="h-4 w-4 mr-2" />
-                  生成AI周报
+          {!aiReport && !loading && (
+            <div className="text-center py-8">
+              <Sparkles className="h-12 w-12 text-blue-500 mx-auto mb-4" />
+              <p className="text-gray-600 mb-4">点击下方按钮，让AI为您生成专业的周报总结</p>
+              <Button onClick={handleGenerateAIReport} disabled={workItems.length === 0 || !configured}>
+                <Sparkles className="h-4 w-4 mr-2" />
+                生成AI周报
+              </Button>
+              {workItems.length === 0 && <p className="text-sm text-gray-500 mt-2">本周暂无工作记录</p>}
+            </div>
+          )}
+
+          {loading && (
+            <div className="text-center py-8">
+              <Loader2 className="h-8 w-8 animate-spin text-blue-500 mx-auto mb-4" />
+              <p className="text-gray-600">AI正在分析您的工作记录，生成专业周报...</p>
+            </div>
+          )}
+
+          {error && (
+            <Alert className="border-red-200 bg-red-50">
+              <AlertDescription className="text-red-700">{error}</AlertDescription>
+            </Alert>
+          )}
+
+          {aiReport && (
+            <div className="space-y-4">
+              <div className="flex gap-2">
+                <Button variant="outline" size="sm" onClick={handleCopyReport}>
+                  <Copy className="h-4 w-4 mr-2" />
+                  复制内容
                 </Button>
-                {workItems.length === 0 && <p className="text-sm text-gray-500 mt-2">本周暂无工作记录</p>}
+                <Button variant="outline" size="sm" onClick={handleDownloadReport}>
+                  <Download className="h-4 w-4 mr-2" />
+                  下载文本
+                </Button>
+                <Button variant="outline" size="sm" onClick={handleGenerateAIReport}>
+                  <Sparkles className="h-4 w-4 mr-2" />
+                  重新生成
+                </Button>
+                <AIConfigDialog onConfigChange={handleConfigChange} />
               </div>
-            )}
 
-            {loading && (
-              <div className="text-center py-8">
-                <Loader2 className="h-8 w-8 animate-spin text-purple-500 mx-auto mb-4" />
-                <p className="text-gray-600">DeepSeek AI正在分析您的工作记录，生成专业周报...</p>
-              </div>
-            )}
-
-            {error && (
-              <Alert className="border-red-200 bg-red-50">
-                <AlertDescription className="text-red-700">{error}</AlertDescription>
-              </Alert>
-            )}
-
-            {aiReport && (
-              <div className="space-y-4">
-                <div className="flex gap-2">
-                  <Button variant="outline" size="sm" onClick={handleCopyReport}>
-                    <Copy className="h-4 w-4 mr-2" />
-                    复制内容
-                  </Button>
-                  <Button variant="outline" size="sm" onClick={handleDownloadReport}>
-                    <Download className="h-4 w-4 mr-2" />
-                    下载文本
-                  </Button>
-                  <Button variant="outline" size="sm" onClick={handleGenerateAIReport}>
-                    <Sparkles className="h-4 w-4 mr-2" />
-                    重新生成
-                  </Button>
-                </div>
-
-                <Card>
-                  <CardContent className="p-6">
-                    <pre className="whitespace-pre-wrap text-sm leading-relaxed font-sans">{aiReport}</pre>
-                  </CardContent>
-                </Card>
-              </div>
-            )}
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {showConfigCheck && <AIConfigCheck onClose={() => setShowConfigCheck(false)} />}
-    </>
+              <Card>
+                <CardContent className="p-6">
+                  <pre className="whitespace-pre-wrap text-sm leading-relaxed font-sans">{aiReport}</pre>
+                </CardContent>
+              </Card>
+            </div>
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
   )
 }

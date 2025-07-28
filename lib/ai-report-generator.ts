@@ -1,17 +1,16 @@
 import { generateText } from "ai"
-import { createOpenAI } from "@ai-sdk/openai"
 import type { WorkItem } from "@/lib/data-manager"
 import { format } from "date-fns"
 import { zhCN } from "date-fns/locale"
-
-// 创建DeepSeek客户端
-const deepseek = createOpenAI({
-  name: "deepseek",
-  apiKey: process.env.NEXT_PUBLIC_DEEPSEEK_API_KEY || "your-deepseek-api-key",
-  baseURL: "https://api.deepseek.com",
-})
+import { createAIClient } from "./ai-providers"
+import { aiConfigManager } from "./ai-config-manager"
 
 export async function generateAIWeeklyReport(workItems: WorkItem[], weekStart: Date): Promise<string> {
+  const config = aiConfigManager.getConfig()
+  if (!config || !aiConfigManager.isConfigValid(config)) {
+    throw new Error("请先配置AI模型")
+  }
+
   const weekEnd = new Date(weekStart.getTime() + 6 * 24 * 60 * 60 * 1000)
   const weekRange = `${format(weekStart, "yyyy年MM月dd日", { locale: zhCN })} - ${format(weekEnd, "yyyy年MM月dd日", { locale: zhCN })}`
 
@@ -62,8 +61,9 @@ ${Object.entries(categorizedItems)
 `
 
   try {
+    const aiClient = createAIClient(config)
     const { text } = await generateText({
-      model: deepseek("deepseek-chat"),
+      model: aiClient(config.modelId),
       prompt,
       temperature: 0.7,
       maxTokens: 2000,
@@ -71,12 +71,17 @@ ${Object.entries(categorizedItems)
 
     return text
   } catch (error) {
-    console.error("DeepSeek生成周报失败:", error)
-    throw new Error("AI生成周报失败，请检查网络连接或API配置")
+    console.error("AI生成周报失败:", error)
+    throw new Error("AI生成周报失败，请检查网络连接或配置")
   }
 }
 
 export async function optimizeWorkContent(content: string): Promise<string> {
+  const config = aiConfigManager.getConfig()
+  if (!config || !aiConfigManager.isConfigValid(config)) {
+    throw new Error("请先配置AI模型")
+  }
+
   const prompt = `
 请优化以下工作内容描述，使其更加专业、简洁和清晰：
 
@@ -93,8 +98,9 @@ export async function optimizeWorkContent(content: string): Promise<string> {
 `
 
   try {
+    const aiClient = createAIClient(config)
     const { text } = await generateText({
-      model: deepseek("deepseek-chat"),
+      model: aiClient(config.modelId),
       prompt,
       temperature: 0.5,
       maxTokens: 200,
@@ -102,13 +108,13 @@ export async function optimizeWorkContent(content: string): Promise<string> {
 
     return text.trim()
   } catch (error) {
-    console.error("DeepSeek优化内容失败:", error)
-    throw new Error("AI优化失败，请检查API配置")
+    console.error("AI优化内容失败:", error)
+    throw new Error("AI优化失败")
   }
 }
 
-// 检查DeepSeek API是否配置
-export function isDeepSeekConfigured(): boolean {
-  const apiKey = process.env.NEXT_PUBLIC_DEEPSEEK_API_KEY
-  return !!(apiKey && apiKey !== "your-deepseek-api-key")
+// 检查AI是否配置
+export function isAIConfigured(): boolean {
+  const config = aiConfigManager.getConfig()
+  return aiConfigManager.isConfigValid(config)
 }

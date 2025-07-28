@@ -9,6 +9,8 @@
     "start": "next start"
   },
   "dependencies": {
+    "@ai-sdk/anthropic": "latest",
+    "@ai-sdk/google": "latest",
     "@ai-sdk/openai": "latest",
     "@radix-ui/react-avatar": "1.1.2",
     "@radix-ui/react-calendar": "1.0.0",

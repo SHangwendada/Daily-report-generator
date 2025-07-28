@@ -22,8 +22,8 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar as CalendarComponent } from "@/components/ui/calendar"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { ImageUpload } from "@/components/image-upload"
-import { AIConfigCheck } from "@/components/ai-config-check"
-import { optimizeWorkContent, isDeepSeekConfigured } from "@/lib/ai-report-generator"
+import { AIConfigDialog } from "@/components/ai-config-dialog"
+import { optimizeWorkContent, isAIConfigured } from "@/lib/ai-report-generator"
 import type { WorkItem } from "@/lib/data-manager"
 
 interface EditWorkDialogProps {
@@ -39,13 +39,10 @@ export function EditWorkDialog({ open, onOpenChange, onUpdate, workItem }: EditW
   const [content, setContent] = useState(workItem.content)
   const [images, setImages] = useState<string[]>(workItem.images || [])
   const [optimizing, setOptimizing] = useState(false)
-  const [showConfigCheck, setShowConfigCheck] = useState(false)
-
-  const isConfigured = isDeepSeekConfigured()
+  const [configured, setConfigured] = useState(isAIConfigured())
 
   const handleOptimizeContent = async () => {
-    if (!isConfigured) {
-      setShowConfigCheck(true)
+    if (!configured) {
       return
     }
 
@@ -57,7 +54,7 @@ export function EditWorkDialog({ open, onOpenChange, onUpdate, workItem }: EditW
       setContent(optimizedContent)
     } catch (error) {
       console.error("优化内容失败:", error)
-      alert("DeepSeek AI优化失败，请稍后重试")
+      alert("AI优化失败，请稍后重试")
     } finally {
       setOptimizing(false)
     }
@@ -79,109 +76,103 @@ export function EditWorkDialog({ open, onOpenChange, onUpdate, workItem }: EditW
     onOpenChange(false)
   }
 
+  const handleConfigChange = () => {
+    setConfigured(isAIConfigured())
+  }
+
   return (
-    <>
-      <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="sm:max-w-[600px] max-h-[80vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>编辑工作记录</DialogTitle>
-            <DialogDescription>修改工作记录的详细信息</DialogDescription>
-          </DialogHeader>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="date">日期</Label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button variant="outline" className="w-full justify-start text-left font-normal bg-transparent">
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {format(date, "yyyy年MM月dd日", { locale: zhCN })}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0">
-                  <CalendarComponent
-                    mode="single"
-                    selected={date}
-                    onSelect={(date) => date && setDate(date)}
-                    initialFocus
-                  />
-                </PopoverContent>
-              </Popover>
-            </div>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-[600px] max-h-[80vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>编辑工作记录</DialogTitle>
+          <DialogDescription>修改工作记录的详细信息</DialogDescription>
+        </DialogHeader>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="date">日期</Label>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" className="w-full justify-start text-left font-normal bg-transparent">
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {format(date, "yyyy年MM月dd日", { locale: zhCN })}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0">
+                <CalendarComponent
+                  mode="single"
+                  selected={date}
+                  onSelect={(date) => date && setDate(date)}
+                  initialFocus
+                />
+              </PopoverContent>
+            </Popover>
+          </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="category">分类</Label>
-              <Select value={category} onValueChange={(value: WorkItem["category"]) => setCategory(value)}>
-                <SelectTrigger>
-                  <SelectValue placeholder="选择工作分类" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="日常审计">日常审计</SelectItem>
-                  <SelectItem value="项目进度">项目进度</SelectItem>
-                  <SelectItem value="其他">其他</SelectItem>
-                  <SelectItem value="本周遗留问题">本周遗留问题</SelectItem>
-                  <SelectItem value="下周计划">下周计划</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+          <div className="space-y-2">
+            <Label htmlFor="category">分类</Label>
+            <Select value={category} onValueChange={(value: WorkItem["category"]) => setCategory(value)}>
+              <SelectTrigger>
+                <SelectValue placeholder="选择工作分类" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="日常审计">日常审计</SelectItem>
+                <SelectItem value="项目进度">项目进度</SelectItem>
+                <SelectItem value="其他">其他</SelectItem>
+                <SelectItem value="本周遗留问题">本周遗留问题</SelectItem>
+                <SelectItem value="下周计划">下周计划</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
 
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Label htmlFor="content">工作内容</Label>
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label htmlFor="content">工作内容</Label>
+              <div className="flex items-center gap-2">
+                {!configured && <AIConfigDialog onConfigChange={handleConfigChange} />}
                 <Button
                   type="button"
                   variant="outline"
                   size="sm"
                   onClick={handleOptimizeContent}
-                  disabled={optimizing || !content.trim()}
+                  disabled={optimizing || !content.trim() || !configured}
                 >
                   {optimizing ? (
                     <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                   ) : (
-                    <Sparkles className="h-4 w-4 mr-2 text-purple-600" />
+                    <Sparkles className="h-4 w-4 mr-2" />
                   )}
-                  DeepSeek优化
+                  AI优化
                 </Button>
               </div>
-
-              {!isConfigured && (
-                <Alert className="border-purple-200 bg-purple-50">
-                  <Settings className="h-4 w-4" />
-                  <AlertDescription className="text-purple-700">
-                    需要配置 DeepSeek API Key 才能使用 AI 优化功能。
-                    <Button
-                      variant="link"
-                      className="p-0 h-auto text-purple-700 underline"
-                      onClick={() => setShowConfigCheck(true)}
-                    >
-                      点击配置
-                    </Button>
-                  </AlertDescription>
-                </Alert>
-              )}
-
-              <Textarea
-                id="content"
-                placeholder="请详细描述您完成的工作内容..."
-                value={content}
-                onChange={(e) => setContent(e.target.value)}
-                rows={4}
-                required
-              />
             </div>
 
-            <ImageUpload images={images} onImagesChange={setImages} maxImages={5} />
+            {!configured && (
+              <Alert className="border-orange-200 bg-orange-50">
+                <Settings className="h-4 w-4" />
+                <AlertDescription className="text-orange-700">需要配置AI模型才能使用内容优化功能</AlertDescription>
+              </Alert>
+            )}
 
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-                取消
-              </Button>
-              <Button type="submit">保存修改</Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
+            <Textarea
+              id="content"
+              placeholder="请详细描述您完成的工作内容..."
+              value={content}
+              onChange={(e) => setContent(e.target.value)}
+              rows={4}
+              required
+            />
+          </div>
 
-      {showConfigCheck && <AIConfigCheck onClose={() => setShowConfigCheck(false)} />}
-    </>
+          <ImageUpload images={images} onImagesChange={setImages} maxImages={5} />
+
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+              取消
+            </Button>
+            <Button type="submit">保存修改</Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   )
 }
