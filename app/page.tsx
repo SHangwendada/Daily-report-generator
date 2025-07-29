@@ -149,10 +149,10 @@ export default function HomePage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">加载中...</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
+          <p className="text-slate-600">加载中...</p>
         </div>
       </div>
     )
@@ -163,34 +163,34 @@ export default function HomePage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
       <div className="container mx-auto p-6">
         {/* 头部 */}
         <div className="mb-8">
           <div className="flex items-center justify-between mb-6">
             <div>
-              <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-2">
+              <h1 className="text-4xl font-bold bg-gradient-to-r from-slate-700 to-slate-900 bg-clip-text text-transparent mb-2">
                 工作日志管理系统
               </h1>
-              <p className="text-gray-600">智能记录每日工作，自动生成专业周报</p>
+              <p className="text-slate-600">智能记录每日工作，自动生成专业周报</p>
             </div>
             <div className="flex items-center gap-4">
-              <div className="flex items-center gap-3 bg-white rounded-lg p-3 shadow-sm border">
-                <Avatar className="ring-2 ring-blue-100">
+              <div className="flex items-center gap-3 bg-white rounded-xl p-3 shadow-sm border border-slate-200">
+                <Avatar className="ring-2 ring-slate-100">
                   <AvatarImage src="/placeholder.svg?height=40&width=40" />
-                  <AvatarFallback className="bg-gradient-to-br from-blue-500 to-purple-600 text-white">
+                  <AvatarFallback className="bg-gradient-to-br from-slate-400 to-slate-600 text-white">
                     <UserIcon className="h-4 w-4" />
                   </AvatarFallback>
                 </Avatar>
                 <div className="text-sm">
-                  <p className="font-medium text-gray-900">{user.fullName}</p>
-                  <p className="text-gray-500">{user.email}</p>
+                  <p className="font-medium text-slate-800">{user.fullName}</p>
+                  <p className="text-slate-500">{user.email}</p>
                 </div>
               </div>
               <Button
                 variant="outline"
                 onClick={handleSignOut}
-                className="border-gray-200 hover:bg-gray-50 bg-transparent"
+                className="border-slate-200 hover:bg-slate-50 bg-white shadow-sm"
               >
                 <LogOut className="h-4 w-4 mr-2" />
                 退出登录
@@ -211,41 +211,41 @@ export default function HomePage() {
         </div>
 
         <Tabs defaultValue="daily" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4 bg-white shadow-sm">
+          <TabsList className="grid w-full grid-cols-4 bg-white shadow-sm border border-slate-200">
             <TabsTrigger
               value="daily"
-              className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-purple-600 data-[state=active]:text-white"
+              className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-slate-500 data-[state=active]:to-slate-700 data-[state=active]:text-white"
             >
               每日记录
             </TabsTrigger>
             <TabsTrigger
               value="analytics"
-              className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-purple-600 data-[state=active]:text-white"
+              className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-slate-500 data-[state=active]:to-slate-700 data-[state=active]:text-white"
             >
               数据分析
             </TabsTrigger>
             <TabsTrigger
               value="summary"
-              className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-purple-600 data-[state=active]:text-white"
+              className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-slate-500 data-[state=active]:to-slate-700 data-[state=active]:text-white"
             >
               期间总结
             </TabsTrigger>
             <TabsTrigger
               value="weekly"
-              className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-purple-600 data-[state=active]:text-white"
+              className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-slate-500 data-[state=active]:to-slate-700 data-[state=active]:text-white"
             >
               周报生成
             </TabsTrigger>
           </TabsList>
 
           <TabsContent value="daily" className="space-y-6">
-            <Card className="shadow-lg border-0 bg-white/80 backdrop-blur-sm">
-              <CardHeader className="bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-t-lg">
+            <Card className="shadow-lg border-0 bg-white/90 backdrop-blur-sm">
+              <CardHeader className="bg-gradient-to-r from-slate-500 to-slate-700 text-white rounded-t-lg">
                 <CardTitle className="flex items-center gap-2">
                   <Calendar className="h-5 w-5" />
                   本周工作记录
                 </CardTitle>
-                <CardDescription className="text-blue-100">
+                <CardDescription className="text-slate-100">
                   {format(currentWeekStart, "yyyy年MM月dd日", { locale: zhCN })} -{" "}
                   {format(endOfWeek(currentWeekStart, { weekStartsOn: 1 }), "yyyy年MM月dd日", { locale: zhCN })}
                 </CardDescription>
@@ -284,18 +284,18 @@ export default function HomePage() {
                     return (
                       <Card
                         key={day.toISOString()}
-                        className={`border-l-4 ${isToday ? "border-l-blue-500 bg-blue-50/50" : "border-l-gray-300"} hover:shadow-md transition-all duration-200`}
+                        className={`border-l-4 ${isToday ? "border-l-blue-400 bg-blue-50/50" : "border-l-slate-300"} hover:shadow-md transition-all duration-200 border-slate-200`}
                       >
                         <CardHeader className="pb-3">
                           <div className="flex items-center justify-between">
-                            <CardTitle className={`text-lg ${isToday ? "text-blue-700" : "text-gray-700"}`}>
+                            <CardTitle className={`text-lg ${isToday ? "text-blue-700" : "text-slate-700"}`}>
                               {format(day, "MM月dd日 EEEE", { locale: zhCN })}
-                              {isToday && <Badge className="ml-2 bg-blue-500">今天</Badge>}
+                              {isToday && <Badge className="ml-2 bg-blue-400">今天</Badge>}
                             </CardTitle>
                             {dayItems.length > 0 && (
                               <Badge
                                 variant="secondary"
-                                className="bg-gradient-to-r from-blue-100 to-purple-100 text-blue-700"
+                                className="bg-gradient-to-r from-slate-100 to-slate-200 text-slate-700 border-slate-300"
                               >
                                 {dayItems.length} 项工作
                               </Badge>
@@ -304,25 +304,25 @@ export default function HomePage() {
                         </CardHeader>
                         <CardContent>
                           {dayItems.length === 0 ? (
-                            <p className="text-gray-500 text-sm py-4 text-center">暂无工作记录</p>
+                            <p className="text-slate-500 text-sm py-4 text-center">暂无工作记录</p>
                           ) : (
                             <div className="space-y-4">
                               {dayItems.map((item) => (
                                 <div
                                   key={item.id}
-                                  className="flex items-start justify-between p-4 bg-gradient-to-r from-gray-50 to-gray-100 rounded-lg hover:from-blue-50 hover:to-purple-50 transition-all duration-200"
+                                  className="flex items-start justify-between p-4 bg-gradient-to-r from-slate-50 to-gray-50 rounded-lg hover:from-blue-50 hover:to-indigo-50 transition-all duration-200 border border-slate-200"
                                 >
                                   <div className="flex-1">
                                     <div className="flex items-center gap-2 mb-2">
-                                      <Badge variant="outline" className="border-blue-200 text-blue-700 bg-blue-50">
+                                      <Badge variant="outline" className="border-slate-300 text-slate-600 bg-slate-50">
                                         {item.category}
                                       </Badge>
-                                      <span className="text-xs text-gray-500 flex items-center gap-1">
+                                      <span className="text-xs text-slate-500 flex items-center gap-1">
                                         <Clock className="h-3 w-3" />
                                         {format(parseISO(item.createdAt), "HH:mm")}
                                       </span>
                                     </div>
-                                    <p className="text-sm text-gray-700 mb-3 leading-relaxed">{item.content}</p>
+                                    <p className="text-sm text-slate-700 mb-3 leading-relaxed">{item.content}</p>
                                     {item.images && item.images.length > 0 && (
                                       <div className="flex gap-2 flex-wrap">
                                         {item.images.map((imageUrl, index) => (
@@ -330,7 +330,7 @@ export default function HomePage() {
                                             key={index}
                                             src={imageUrl || "/placeholder.svg?height=64&width=64&query=work image"}
                                             alt={`工作图片 ${index + 1}`}
-                                            className="w-16 h-16 object-cover rounded-lg border-2 border-gray-200 cursor-pointer hover:border-blue-300 hover:shadow-md transition-all duration-200"
+                                            className="w-16 h-16 object-cover rounded-lg border-2 border-slate-200 cursor-pointer hover:border-blue-300 hover:shadow-md transition-all duration-200"
                                             onClick={() => window.open(imageUrl, "_blank")}
                                           />
                                         ))}
@@ -342,7 +342,7 @@ export default function HomePage() {
                                       variant="ghost"
                                       size="sm"
                                       onClick={() => setEditingItem(item)}
-                                      className="text-blue-500 hover:text-blue-700 hover:bg-blue-50"
+                                      className="text-slate-500 hover:text-slate-700 hover:bg-slate-100"
                                     >
                                       编辑
                                     </Button>
@@ -350,7 +350,7 @@ export default function HomePage() {
                                       variant="ghost"
                                       size="sm"
                                       onClick={() => deleteWorkItem(item.id)}
-                                      className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                                      className="text-red-400 hover:text-red-600 hover:bg-red-50"
                                     >
                                       删除
                                     </Button>
@@ -371,13 +371,13 @@ export default function HomePage() {
           <TabsContent value="analytics" className="space-y-6">
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               <div className="lg:col-span-2">
-                <Card className="shadow-lg border-0 bg-white/80 backdrop-blur-sm">
-                  <CardHeader className="bg-gradient-to-r from-green-500 to-blue-600 text-white rounded-t-lg">
+                <Card className="shadow-lg border-0 bg-white/90 backdrop-blur-sm">
+                  <CardHeader className="bg-gradient-to-r from-emerald-400 to-teal-500 text-white rounded-t-lg">
                     <CardTitle className="flex items-center gap-2">
                       <TrendingUp className="h-5 w-5" />
                       工作效率分析
                     </CardTitle>
-                    <CardDescription className="text-green-100">基于工作数据的智能分析和建议</CardDescription>
+                    <CardDescription className="text-emerald-100">基于工作数据的智能分析和建议</CardDescription>
                   </CardHeader>
                   <CardContent className="p-6">
                     <ProductivityFeatures workItems={workItems} weekStart={currentWeekStart} />
@@ -391,13 +391,13 @@ export default function HomePage() {
           </TabsContent>
 
           <TabsContent value="summary" className="space-y-6">
-            <Card className="shadow-lg border-0 bg-white/80 backdrop-blur-sm">
-              <CardHeader className="bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-t-lg">
+            <Card className="shadow-lg border-0 bg-white/90 backdrop-blur-sm">
+              <CardHeader className="bg-gradient-to-r from-violet-400 to-purple-500 text-white rounded-t-lg">
                 <CardTitle className="flex items-center gap-2">
                   <BarChart3 className="h-5 w-5" />
                   期间总结分析
                 </CardTitle>
-                <CardDescription className="text-indigo-100">月度和年度工作总结，AI智能分析</CardDescription>
+                <CardDescription className="text-violet-100">月度和年度工作总结，AI智能分析</CardDescription>
               </CardHeader>
               <CardContent className="p-6">
                 <PeriodSummary workItems={workItems} />
@@ -406,13 +406,13 @@ export default function HomePage() {
           </TabsContent>
 
           <TabsContent value="weekly" className="space-y-6">
-            <Card className="shadow-lg border-0 bg-white/80 backdrop-blur-sm">
-              <CardHeader className="bg-gradient-to-r from-purple-500 to-pink-600 text-white rounded-t-lg">
+            <Card className="shadow-lg border-0 bg-white/90 backdrop-blur-sm">
+              <CardHeader className="bg-gradient-to-r from-rose-400 to-pink-500 text-white rounded-t-lg">
                 <CardTitle className="flex items-center gap-2">
                   <FileText className="h-5 w-5" />
                   周报生成
                 </CardTitle>
-                <CardDescription className="text-purple-100">基于本周工作记录自动生成专业周报文档</CardDescription>
+                <CardDescription className="text-rose-100">基于本周工作记录自动生成专业周报文档</CardDescription>
               </CardHeader>
               <CardContent className="p-6">
                 <div className="space-y-6">
@@ -422,13 +422,13 @@ export default function HomePage() {
                       return (
                         <Card
                           key={category}
-                          className="text-center bg-gradient-to-br from-blue-50 to-purple-50 border-blue-200 hover:shadow-md transition-all duration-200"
+                          className="text-center bg-gradient-to-br from-slate-50 to-gray-50 border-slate-200 hover:shadow-md transition-all duration-200"
                         >
                           <CardContent className="pt-6">
-                            <div className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                            <div className="text-3xl font-bold bg-gradient-to-r from-slate-600 to-slate-800 bg-clip-text text-transparent">
                               {count}
                             </div>
-                            <div className="text-sm text-gray-600 mt-1">{category}</div>
+                            <div className="text-sm text-slate-600 mt-1">{category}</div>
                           </CardContent>
                         </Card>
                       )
@@ -438,7 +438,7 @@ export default function HomePage() {
                   <div className="flex gap-3 flex-wrap">
                     <Button
                       onClick={handleGenerateReport}
-                      className="flex-1 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700"
+                      className="flex-1 bg-gradient-to-r from-slate-500 to-slate-700 hover:from-slate-600 hover:to-slate-800"
                     >
                       <Download className="h-4 w-4 mr-2" />
                       生成并下载周报 (DOCX)
@@ -446,7 +446,7 @@ export default function HomePage() {
                     <Button
                       variant="outline"
                       onClick={() => setShowReportDialog(true)}
-                      className="border-blue-200 hover:bg-blue-50"
+                      className="border-slate-200 hover:bg-slate-50"
                     >
                       预览周报
                     </Button>

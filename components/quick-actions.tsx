@@ -3,7 +3,7 @@
 import { useState } from "react"
 import { format } from "date-fns"
 import { zhCN } from "date-fns/locale"
-import { Plus, Copy, Clock, Bookmark, Zap, Calendar, FileText, Search, MoreHorizontal } from "lucide-react"
+import { Plus, Clock, Bookmark, Zap, Calendar, FileText, Search, MoreHorizontal } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
@@ -46,7 +46,6 @@ export function QuickActions({
   onCategoryChange,
 }: QuickActionsProps) {
   const [quickAddOpen, setQuickAddOpen] = useState(false)
-  const [templatesOpen, setTemplatesOpen] = useState(false)
 
   // 常用工作模板
   const workTemplates = [
@@ -61,14 +60,6 @@ export function QuickActions({
   const handleQuickAdd = (template: (typeof workTemplates)[0]) => {
     onQuickAdd(template.content, template.category)
     setQuickAddOpen(false)
-  }
-
-  // 复制上一条记录
-  const handleCopyLastRecord = () => {
-    if (workItems.length > 0) {
-      const lastItem = workItems[0]
-      onQuickAdd(lastItem.content, lastItem.category)
-    }
   }
 
   // 获取今日工作统计
@@ -86,10 +77,10 @@ export function QuickActions({
   return (
     <div className="space-y-4">
       {/* 主要操作按钮 */}
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap gap-3">
         <Button
           onClick={onAddWork}
-          className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700"
+          className="bg-gradient-to-r from-blue-400 to-indigo-500 hover:from-blue-500 hover:to-indigo-600 shadow-md hover:shadow-lg transition-all duration-200"
         >
           <Plus className="h-4 w-4 mr-2" />
           添加工作记录
@@ -97,29 +88,29 @@ export function QuickActions({
 
         <Dialog open={quickAddOpen} onOpenChange={setQuickAddOpen}>
           <DialogTrigger asChild>
-            <Button variant="outline" className="border-blue-200 hover:bg-blue-50 bg-transparent">
+            <Button variant="outline" className="border-slate-200 hover:bg-slate-50 bg-white shadow-sm">
               <Zap className="h-4 w-4 mr-2" />
               快速添加
             </Button>
           </DialogTrigger>
-          <DialogContent>
+          <DialogContent className="sm:max-w-[500px]">
             <DialogHeader>
-              <DialogTitle>快速添加工作记录</DialogTitle>
-              <DialogDescription>选择常用模板快速创建工作记录</DialogDescription>
+              <DialogTitle className="text-slate-800">快速添加工作记录</DialogTitle>
+              <DialogDescription className="text-slate-600">选择常用模板快速创建工作记录</DialogDescription>
             </DialogHeader>
             <div className="grid gap-3">
               {workTemplates.map((template, index) => (
                 <Card
                   key={index}
-                  className="cursor-pointer hover:bg-gray-50 transition-colors"
+                  className="cursor-pointer hover:bg-slate-50 transition-colors border-slate-200 hover:border-blue-200 hover:shadow-sm"
                   onClick={() => handleQuickAdd(template)}
                 >
                   <CardContent className="p-4">
                     <div className="flex items-start gap-3">
-                      <Badge variant="outline" className="mt-0.5">
+                      <Badge variant="outline" className="mt-0.5 border-slate-300 text-slate-600">
                         {template.category}
                       </Badge>
-                      <p className="text-sm text-gray-700 flex-1">{template.content}</p>
+                      <p className="text-sm text-slate-700 flex-1 leading-relaxed">{template.content}</p>
                     </div>
                   </CardContent>
                 </Card>
@@ -128,35 +119,25 @@ export function QuickActions({
           </DialogContent>
         </Dialog>
 
-        <Button
-          variant="outline"
-          onClick={handleCopyLastRecord}
-          disabled={workItems.length === 0}
-          className="border-green-200 hover:bg-green-50 bg-transparent"
-        >
-          <Copy className="h-4 w-4 mr-2" />
-          复制上条
-        </Button>
-
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="outline" className="border-gray-200 hover:bg-gray-50 bg-transparent">
+            <Button variant="outline" className="border-slate-200 hover:bg-slate-50 bg-white shadow-sm">
               <MoreHorizontal className="h-4 w-4 mr-2" />
               更多操作
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent>
-            <DropdownMenuLabel>快捷操作</DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem>
+          <DropdownMenuContent className="bg-white border-slate-200">
+            <DropdownMenuLabel className="text-slate-700">快捷操作</DropdownMenuLabel>
+            <DropdownMenuSeparator className="bg-slate-200" />
+            <DropdownMenuItem className="hover:bg-slate-50">
               <Bookmark className="h-4 w-4 mr-2" />
               保存为模板
             </DropdownMenuItem>
-            <DropdownMenuItem>
+            <DropdownMenuItem className="hover:bg-slate-50">
               <FileText className="h-4 w-4 mr-2" />
               导出数据
             </DropdownMenuItem>
-            <DropdownMenuItem>
+            <DropdownMenuItem className="hover:bg-slate-50">
               <Calendar className="h-4 w-4 mr-2" />
               设置提醒
             </DropdownMenuItem>
@@ -165,18 +146,18 @@ export function QuickActions({
       </div>
 
       {/* 搜索和筛选 */}
-      <div className="flex flex-wrap gap-2 items-center">
+      <div className="flex flex-wrap gap-3 items-center">
         <div className="relative flex-1 min-w-[200px]">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
           <Input
             placeholder="搜索工作内容..."
             value={searchTerm}
             onChange={(e) => onSearchChange(e.target.value)}
-            className="pl-10 border-gray-200 focus:border-blue-400"
+            className="pl-10 border-slate-200 focus:border-blue-300 focus:ring-blue-200 bg-white"
           />
         </div>
 
-        <div className="flex gap-1 flex-wrap">
+        <div className="flex gap-2 flex-wrap">
           {categories.map((category) => (
             <Button
               key={category}
@@ -184,7 +165,9 @@ export function QuickActions({
               size="sm"
               onClick={() => onCategoryChange(category)}
               className={
-                selectedCategory === category ? "bg-blue-500 hover:bg-blue-600" : "border-gray-200 hover:bg-gray-50"
+                selectedCategory === category
+                  ? "bg-blue-500 hover:bg-blue-600 shadow-sm"
+                  : "border-slate-200 hover:bg-slate-50 bg-white text-slate-600"
               }
             >
               {category}
@@ -194,12 +177,14 @@ export function QuickActions({
       </div>
 
       {/* 今日统计 */}
-      <div className="flex items-center gap-4 text-sm text-gray-600">
-        <div className="flex items-center gap-1">
+      <div className="flex items-center gap-4 text-sm text-slate-500 bg-white p-3 rounded-lg border border-slate-200 shadow-sm">
+        <div className="flex items-center gap-2">
           <Clock className="h-4 w-4" />
-          <span>今日已记录 {getTodayStats()} 项工作</span>
+          <span>
+            今日已记录 <span className="font-medium text-slate-700">{getTodayStats()}</span> 项工作
+          </span>
         </div>
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-2">
           <Calendar className="h-4 w-4" />
           <span>{format(new Date(), "yyyy年MM月dd日 EEEE", { locale: zhCN })}</span>
         </div>

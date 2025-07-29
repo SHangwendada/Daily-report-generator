@@ -134,57 +134,57 @@ export function ProductivityFeatures({ workItems, weekStart }: ProductivityFeatu
     <div className="space-y-6">
       {/* 工作概览卡片 */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card className="bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200">
+        <Card className="bg-gradient-to-br from-slate-50 to-slate-100 border-slate-200">
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-blue-700">总工作项</p>
-                <p className="text-2xl font-bold text-blue-900">{stats.totalItems}</p>
+                <p className="text-sm font-medium text-slate-600">总工作项</p>
+                <p className="text-2xl font-bold text-slate-800">{stats.totalItems}</p>
               </div>
-              <div className="p-2 bg-blue-200 rounded-full">
-                <BarChart3 className="h-5 w-5 text-blue-700" />
+              <div className="p-2 bg-slate-200 rounded-full">
+                <BarChart3 className="h-5 w-5 text-slate-600" />
               </div>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="bg-gradient-to-br from-green-50 to-green-100 border-green-200">
+        <Card className="bg-gradient-to-br from-emerald-50 to-emerald-100 border-emerald-200">
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-green-700">已完成</p>
-                <p className="text-2xl font-bold text-green-900">{stats.completedTasks}</p>
+                <p className="text-sm font-medium text-emerald-700">已完成</p>
+                <p className="text-2xl font-bold text-emerald-800">{stats.completedTasks}</p>
               </div>
-              <div className="p-2 bg-green-200 rounded-full">
-                <CheckCircle2 className="h-5 w-5 text-green-700" />
+              <div className="p-2 bg-emerald-200 rounded-full">
+                <CheckCircle2 className="h-5 w-5 text-emerald-700" />
               </div>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="bg-gradient-to-br from-orange-50 to-orange-100 border-orange-200">
+        <Card className="bg-gradient-to-br from-amber-50 to-amber-100 border-amber-200">
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-orange-700">遗留问题</p>
-                <p className="text-2xl font-bold text-orange-900">{stats.pendingIssues}</p>
+                <p className="text-sm font-medium text-amber-700">遗留问题</p>
+                <p className="text-2xl font-bold text-amber-800">{stats.pendingIssues}</p>
               </div>
-              <div className="p-2 bg-orange-200 rounded-full">
-                <AlertCircle className="h-5 w-5 text-orange-700" />
+              <div className="p-2 bg-amber-200 rounded-full">
+                <AlertCircle className="h-5 w-5 text-amber-700" />
               </div>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="bg-gradient-to-br from-purple-50 to-purple-100 border-purple-200">
+        <Card className="bg-gradient-to-br from-violet-50 to-violet-100 border-violet-200">
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-purple-700">生产力指数</p>
-                <p className="text-2xl font-bold text-purple-900">{metrics.productivity}%</p>
+                <p className="text-sm font-medium text-violet-700">生产力指数</p>
+                <p className="text-2xl font-bold text-violet-800">{metrics.productivity}%</p>
               </div>
-              <div className="p-2 bg-purple-200 rounded-full">
-                <Zap className="h-5 w-5 text-purple-700" />
+              <div className="p-2 bg-violet-200 rounded-full">
+                <Zap className="h-5 w-5 text-violet-700" />
               </div>
             </div>
           </CardContent>
@@ -193,53 +193,59 @@ export function ProductivityFeatures({ workItems, weekStart }: ProductivityFeatu
 
       {/* 详细分析 */}
       <Tabs defaultValue="metrics" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="metrics">效率指标</TabsTrigger>
-          <TabsTrigger value="trends">工作趋势</TabsTrigger>
-          <TabsTrigger value="suggestions">智能建议</TabsTrigger>
+        <TabsList className="grid w-full grid-cols-3 bg-white border border-slate-200">
+          <TabsTrigger value="metrics" className="data-[state=active]:bg-slate-100">
+            效率指标
+          </TabsTrigger>
+          <TabsTrigger value="trends" className="data-[state=active]:bg-slate-100">
+            工作趋势
+          </TabsTrigger>
+          <TabsTrigger value="suggestions" className="data-[state=active]:bg-slate-100">
+            智能建议
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="metrics" className="space-y-4">
-          <Card>
+          <Card className="border-slate-200">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
+              <CardTitle className="flex items-center gap-2 text-slate-700">
                 <TrendingUp className="h-5 w-5" />
                 工作效率分析
               </CardTitle>
-              <CardDescription>基于本周工作数据的效率指标</CardDescription>
+              <CardDescription className="text-slate-600">基于本周工作数据的效率指标</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="space-y-4">
                 <div>
                   <div className="flex justify-between text-sm mb-2">
-                    <span>完成率</span>
-                    <span className="font-medium">{metrics.completionRate}%</span>
+                    <span className="text-slate-600">完成率</span>
+                    <span className="font-medium text-slate-800">{metrics.completionRate}%</span>
                   </div>
                   <Progress value={metrics.completionRate} className="h-2" />
                 </div>
 
                 <div>
                   <div className="flex justify-between text-sm mb-2">
-                    <span>计划性</span>
-                    <span className="font-medium">{metrics.planningRate}%</span>
+                    <span className="text-slate-600">计划性</span>
+                    <span className="font-medium text-slate-800">{metrics.planningRate}%</span>
                   </div>
                   <Progress value={metrics.planningRate} className="h-2" />
                 </div>
 
                 <div>
                   <div className="flex justify-between text-sm mb-2">
-                    <span>问题率</span>
-                    <span className="font-medium">{metrics.issueRate}%</span>
+                    <span className="text-slate-600">问题率</span>
+                    <span className="font-medium text-slate-800">{metrics.issueRate}%</span>
                   </div>
                   <Progress value={metrics.issueRate} className="h-2" />
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 md:grid-cols-5 gap-4 pt-4 border-t">
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-4 pt-4 border-t border-slate-200">
                 {Object.entries(stats.categoryStats).map(([category, count]) => (
                   <div key={category} className="text-center">
-                    <div className="text-lg font-bold text-gray-900">{count}</div>
-                    <div className="text-xs text-gray-600">{category}</div>
+                    <div className="text-lg font-bold text-slate-800">{count}</div>
+                    <div className="text-xs text-slate-600">{category}</div>
                   </div>
                 ))}
               </div>
@@ -248,28 +254,30 @@ export function ProductivityFeatures({ workItems, weekStart }: ProductivityFeatu
         </TabsContent>
 
         <TabsContent value="trends" className="space-y-4">
-          <Card>
+          <Card className="border-slate-200">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
+              <CardTitle className="flex items-center gap-2 text-slate-700">
                 <BarChart3 className="h-5 w-5" />
                 本周工作趋势
               </CardTitle>
-              <CardDescription>每日工作量变化趋势</CardDescription>
+              <CardDescription className="text-slate-600">每日工作量变化趋势</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
                 {trend.map((day, index) => (
                   <div key={index} className="flex items-center gap-4">
-                    <div className="w-16 text-sm font-medium">{format(day.date, "MM/dd", { locale: zhCN })}</div>
+                    <div className="w-16 text-sm font-medium text-slate-700">
+                      {format(day.date, "MM/dd", { locale: zhCN })}
+                    </div>
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-1">
-                        <div className="text-sm text-gray-600">总计: {day.count}</div>
-                        <div className="text-sm text-green-600">完成: {day.completed}</div>
+                        <div className="text-sm text-slate-600">总计: {day.count}</div>
+                        <div className="text-sm text-emerald-600">完成: {day.completed}</div>
                       </div>
                       <div className="flex gap-1">
-                        <div className="flex-1 bg-gray-200 rounded-full h-2">
+                        <div className="flex-1 bg-slate-200 rounded-full h-2">
                           <div
-                            className="bg-blue-500 h-2 rounded-full transition-all duration-300"
+                            className="bg-slate-500 h-2 rounded-full transition-all duration-300"
                             style={{
                               width: `${Math.min(100, (day.count / Math.max(...trend.map((d) => d.count))) * 100)}%`,
                             }}
@@ -292,52 +300,52 @@ export function ProductivityFeatures({ workItems, weekStart }: ProductivityFeatu
                   key={index}
                   className={`border-l-4 ${
                     suggestion.type === "success"
-                      ? "border-l-green-500 bg-green-50"
+                      ? "border-l-emerald-400 bg-emerald-50"
                       : suggestion.type === "warning"
-                        ? "border-l-yellow-500 bg-yellow-50"
+                        ? "border-l-amber-400 bg-amber-50"
                         : suggestion.type === "error"
-                          ? "border-l-red-500 bg-red-50"
-                          : "border-l-blue-500 bg-blue-50"
-                  }`}
+                          ? "border-l-red-400 bg-red-50"
+                          : "border-l-slate-400 bg-slate-50"
+                  } border-slate-200`}
                 >
                   <CardContent className="p-4">
                     <div className="flex items-start gap-3">
                       <div
                         className={`p-2 rounded-full ${
                           suggestion.type === "success"
-                            ? "bg-green-200"
+                            ? "bg-emerald-200"
                             : suggestion.type === "warning"
-                              ? "bg-yellow-200"
+                              ? "bg-amber-200"
                               : suggestion.type === "error"
                                 ? "bg-red-200"
-                                : "bg-blue-200"
+                                : "bg-slate-200"
                         }`}
                       >
                         <suggestion.icon
                           className={`h-4 w-4 ${
                             suggestion.type === "success"
-                              ? "text-green-700"
+                              ? "text-emerald-700"
                               : suggestion.type === "warning"
-                                ? "text-yellow-700"
+                                ? "text-amber-700"
                                 : suggestion.type === "error"
                                   ? "text-red-700"
-                                  : "text-blue-700"
+                                  : "text-slate-700"
                           }`}
                         />
                       </div>
                       <div>
-                        <h3 className="font-medium text-gray-900">{suggestion.title}</h3>
-                        <p className="text-sm text-gray-600 mt-1">{suggestion.description}</p>
+                        <h3 className="font-medium text-slate-800">{suggestion.title}</h3>
+                        <p className="text-sm text-slate-600 mt-1">{suggestion.description}</p>
                       </div>
                     </div>
                   </CardContent>
                 </Card>
               ))
             ) : (
-              <Card>
+              <Card className="border-slate-200">
                 <CardContent className="p-8 text-center">
-                  <Brain className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                  <p className="text-gray-500">暂无智能建议，继续记录工作内容获取个性化建议</p>
+                  <Brain className="h-12 w-12 text-slate-400 mx-auto mb-4" />
+                  <p className="text-slate-500">暂无智能建议，继续记录工作内容获取个性化建议</p>
                 </CardContent>
               </Card>
             )}
