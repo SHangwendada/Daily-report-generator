@@ -20,11 +20,36 @@ import { QuickActions } from "@/components/quick-actions"
 import { PeriodSummary } from "@/components/period-summary"
 import { AIWorkInsights } from "@/components/ai-work-insights"
 import { generateWeeklyReport, defaultReportSettings, type ReportSettings } from "@/lib/report-generator"
-import { userManager, type UserSession } from "@/lib/user-manager"
-import { dataManager, type WorkItem } from "@/lib/data-manager"
+import { supabaseAuth, type UserProfile } from "@/lib/supabase-auth"
+import { supabaseDataManager, type WorkItemSupabase } from "@/lib/supabase-data-manager"
+import { isSupabaseConfigured } from "@/lib/supabase"
+import { ConfigCheck } from "@/components/config-check"
+import type { User } from "@supabase/supabase-js"
+
+// 类型转换函数
+const convertWorkItem = (item: WorkItemSupabase): WorkItem => ({
+  id: item.id,
+  userId: item.user_id,
+  date: item.date,
+  category: item.category,
+  content: item.content,
+  images: item.images || [],
+  createdAt: item.created_at,
+})
+
+interface WorkItem {
+  id: string
+  userId: string
+  date: string
+  category: "日常审计" | "项目进度" | "其他" | "本周遗留问题" | "下周计划"
+  content: string
+  images: string[]
+  createdAt: string
+}
 
 export default function HomePage() {
-  const [user, setUser] = useState<UserSession | null>(null)
+  const [user, setUser] = useState<User | null>(null)
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null)
   const [loading, setLoading] = useState(true)
   const [workItems, setWorkItems] = useState<WorkItem[]>([])
   const [selectedDate, setSelectedDate] = useState(new Date())
@@ -36,75 +61,6 @@ export default function HomePage() {
   const [searchTerm, setSearchTerm] = useState("")
   const [selectedCategory, setSelectedCategory] = useState("全部")
 
-  useEffect(() => {
-    // 检查用户登录状态
-    const currentUser = userManager.getCurrentUser()
-    setUser(currentUser)
-
-    if (currentUser) {
-      loadWorkItems(currentUser.id)
-    }
-
-    setLoading(false)
-  }, [])
-
-  const loadWorkItems = (userId: string) => {
-    const items = dataManager.getWorkItems(userId)
-    setWorkItems(items)
-  }
-
-  const handleAuthSuccess = () => {
-    const currentUser = userManager.getCurrentUser()
-    setUser(currentUser)
-    if (currentUser) {
-      loadWorkItems(currentUser.id)
-    }
-  }
-
-  const addWorkItem = (item: Omit<WorkItem, "id" | "userId" | "createdAt">) => {
-    if (!user) return
-
-    const newItem = dataManager.addWorkItem(user.id, item)
-    setWorkItems((prev) => [newItem, ...prev.filter((i) => i.id !== newItem.id)])
-  }
-
-  const handleQuickAdd = (content: string, category: WorkItem["category"]) => {
-    if (!user) return
-
-    const newItem = dataManager.addWorkItem(user.id, {
-      date: new Date().toISOString(),
-      category,
-      content,
-      images: [],
-    })
-    setWorkItems((prev) => [newItem, ...prev.filter((i) => i.id !== newItem.id)])
-  }
-
-  const deleteWorkItem = (id: string) => {
-    if (!user) return
-
-    const success = dataManager.deleteWorkItem(user.id, id)
-    if (success) {
-      setWorkItems((prev) => prev.filter((item) => item.id !== id))
-    }
-  }
-
-  const updateWorkItem = (updatedItem: WorkItem) => {
-    if (!user) return
-
-    const success = dataManager.updateWorkItem(user.id, updatedItem.id, updatedItem)
-    if (success) {
-      setWorkItems((prev) => prev.map((item) => (item.id === updatedItem.id ? updatedItem : item)))
-    }
-  }
-
-  const handleSignOut = () => {
-    userManager.logout()
-    setUser(null)
-    setWorkItems([])
-  }
-
-  // 过滤工作项
   const filteredWorkItems = useMemo(() => {
     return workItems.filter((item) => {
       const matchesSearch = item.content.toLowerCase().includes(searchTerm.toLowerCase())
@@ -115,14 +71,14 @@ export default function HomePage() {
 
   const getCurrentWeekItems = () => {
     const weekEnd = endOfWeek(currentWeekStart, { weekStartsOn: 1 })
-    return filteredWorkItems.filter((item) => {
+    return workItems.filter((item) => {
       const itemDate = parseISO(item.date)
       return itemDate >= currentWeekStart && itemDate <= weekEnd
     })
   }
 
   const getItemsByDate = (date: Date) => {
-    return filteredWorkItems.filter((item) => isSameDay(parseISO(item.date), date))
+    return workItems.filter((item) => isSameDay(parseISO(item.date), date))
   }
 
   const weekDays = eachDayOfInterval({
@@ -145,6 +101,143 @@ export default function HomePage() {
 
   const goToCurrentWeek = () => {
     setCurrentWeekStart(startOfWeek(new Date(), { weekStartsOn: 1 }))
+  }
+
+  useEffect(() => {
+    // 检查 Supabase 配置
+    if (!isSupabaseConfigured()) {
+      setLoading(false)
+      return
+    }
+
+    // 监听认证状态变化
+    const {
+      data: { subscription },
+    } = supabaseAuth.onAuthStateChange(async (user) => {
+      setUser(user)
+      if (user) {
+        // 获取用户配置文件
+        const profile = await supabaseAuth.getUserProfile(user.id)
+        setUserProfile(profile)
+        // 加载工作记录
+        await loadWorkItems(user.id)
+      } else {
+        setUserProfile(null)
+        setWorkItems([])
+      }
+      setLoading(false)
+    })
+
+    return () => subscription.unsubscribe()
+  }, [])
+
+  const loadWorkItems = async (userId: string) => {
+    try {
+      const items = await supabaseDataManager.getWorkItems(userId)
+      setWorkItems(items.map(convertWorkItem))
+    } catch (error) {
+      console.error("加载工作记录失败:", error)
+    }
+  }
+
+  const handleAuthSuccess = async () => {
+    const currentUser = await supabaseAuth.getCurrentUser()
+    if (currentUser) {
+      setUser(currentUser)
+      const profile = await supabaseAuth.getUserProfile(currentUser.id)
+      setUserProfile(profile)
+      await loadWorkItems(currentUser.id)
+    }
+  }
+
+  const addWorkItem = async (item: Omit<WorkItem, "id" | "userId" | "createdAt">) => {
+    if (!user) return
+
+    try {
+      const newItem = await supabaseDataManager.addWorkItem(user.id, {
+        date: item.date,
+        category: item.category,
+        content: item.content,
+        images: item.images,
+      })
+
+      if (newItem) {
+        setWorkItems((prev) => [convertWorkItem(newItem), ...prev.filter((i) => i.id !== newItem.id)])
+      }
+    } catch (error) {
+      console.error("添加工作记录失败:", error)
+      alert("添加工作记录失败，请重试")
+    }
+  }
+
+  const handleQuickAdd = async (content: string, category: WorkItem["category"]) => {
+    if (!user) return
+
+    try {
+      const newItem = await supabaseDataManager.addWorkItem(user.id, {
+        date: new Date().toISOString(),
+        category,
+        content,
+        images: [],
+      })
+
+      if (newItem) {
+        setWorkItems((prev) => [convertWorkItem(newItem), ...prev.filter((i) => i.id !== newItem.id)])
+      }
+    } catch (error) {
+      console.error("快速添加失败:", error)
+      alert("快速添加失败，请重试")
+    }
+  }
+
+  const deleteWorkItem = async (id: string) => {
+    if (!user) return
+
+    try {
+      const success = await supabaseDataManager.deleteWorkItem(user.id, id)
+      if (success) {
+        setWorkItems((prev) => prev.filter((item) => item.id !== id))
+      }
+    } catch (error) {
+      console.error("删除工作记录失败:", error)
+      alert("删除工作记录失败，请重试")
+    }
+  }
+
+  const updateWorkItem = async (updatedItem: WorkItem) => {
+    if (!user) return
+
+    try {
+      const success = await supabaseDataManager.updateWorkItem(user.id, updatedItem.id, {
+        date: updatedItem.date,
+        category: updatedItem.category,
+        content: updatedItem.content,
+        images: updatedItem.images,
+      })
+
+      if (success) {
+        setWorkItems((prev) => prev.map((item) => (item.id === updatedItem.id ? updatedItem : item)))
+      }
+    } catch (error) {
+      console.error("更新工作记录失败:", error)
+      alert("更新工作记录失败，请重试")
+    }
+  }
+
+  const handleSignOut = async () => {
+    try {
+      await supabaseAuth.signOut()
+      setUser(null)
+      setUserProfile(null)
+      setWorkItems([])
+    } catch (error) {
+      console.error("登出失败:", error)
+    }
+  }
+
+  // 检查 Supabase 配置
+  if (!isSupabaseConfigured()) {
+    return <ConfigCheck />
   }
 
   if (loading) {
@@ -177,13 +270,13 @@ export default function HomePage() {
             <div className="flex items-center gap-4">
               <div className="flex items-center gap-3 bg-white rounded-xl p-3 shadow-sm border border-slate-200">
                 <Avatar className="ring-2 ring-slate-100">
-                  <AvatarImage src="/placeholder.svg?height=40&width=40" />
+                  <AvatarImage src={userProfile?.avatar_url || "/placeholder.svg?height=40&width=40"} />
                   <AvatarFallback className="bg-gradient-to-br from-slate-400 to-slate-600 text-white">
                     <UserIcon className="h-4 w-4" />
                   </AvatarFallback>
                 </Avatar>
                 <div className="text-sm">
-                  <p className="font-medium text-slate-800">{user.fullName}</p>
+                  <p className="font-medium text-slate-800">{userProfile?.full_name || "用户"}</p>
                   <p className="text-slate-500">{user.email}</p>
                 </div>
               </div>
