@@ -20,21 +20,20 @@ import { QuickActions } from "@/components/quick-actions"
 import { PeriodSummary } from "@/components/period-summary"
 import { AIWorkInsights } from "@/components/ai-work-insights"
 import { generateWeeklyReport, defaultReportSettings, type ReportSettings } from "@/lib/report-generator"
-import { supabaseAuth, type UserProfile } from "@/lib/supabase-auth"
-import { supabaseDataManager, type WorkItemSupabase } from "@/lib/supabase-data-manager"
-import { isSupabaseConfigured } from "@/lib/supabase"
-import { ConfigCheck } from "@/components/config-check"
-import type { User } from "@supabase/supabase-js"
+import { clientAuth } from "@/lib/client-auth"
+import { clientData } from "@/lib/client-data"
+import type { UserSession } from "@/lib/server-auth"
+import type { WorkItemServer } from "@/lib/server-data"
 
 // 类型转换函数
-const convertWorkItem = (item: WorkItemSupabase): WorkItem => ({
+const convertWorkItem = (item: WorkItemServer): WorkItem => ({
   id: item.id,
-  userId: item.user_id,
+  userId: item.userId,
   date: item.date,
   category: item.category,
   content: item.content,
   images: item.images || [],
-  createdAt: item.created_at,
+  createdAt: item.createdAt,
 })
 
 interface WorkItem {
@@ -48,8 +47,7 @@ interface WorkItem {
 }
 
 export default function HomePage() {
-  const [user, setUser] = useState<User | null>(null)
-  const [userProfile, setUserProfile] = useState<UserProfile | null>(null)
+  const [user, setUser] = useState<UserSession | null>(null)
   const [loading, setLoading] = useState(true)
   const [workItems, setWorkItems] = useState<WorkItem[]>([])
   const [selectedDate, setSelectedDate] = useState(new Date())
@@ -104,57 +102,38 @@ export default function HomePage() {
   }
 
   useEffect(() => {
-    // 检查 Supabase 配置
-    if (!isSupabaseConfigured()) {
+    // 检查用户登录状态
+    const checkAuth = async () => {
+      const currentUser = await clientAuth.getCurrentUser()
+      setUser(currentUser)
+
+      if (currentUser) {
+        await loadWorkItems()
+      }
+
       setLoading(false)
-      return
     }
 
-    // 监听认证状态变化
-    const {
-      data: { subscription },
-    } = supabaseAuth.onAuthStateChange(async (user) => {
-      setUser(user)
-      if (user) {
-        // 获取用户配置文件
-        const profile = await supabaseAuth.getUserProfile(user.id)
-        setUserProfile(profile)
-        // 加载工作记录
-        await loadWorkItems(user.id)
-      } else {
-        setUserProfile(null)
-        setWorkItems([])
-      }
-      setLoading(false)
-    })
-
-    return () => subscription.unsubscribe()
+    checkAuth()
   }, [])
 
-  const loadWorkItems = async (userId: string) => {
+  const loadWorkItems = async () => {
     try {
-      const items = await supabaseDataManager.getWorkItems(userId)
+      const items = await clientData.getWorkItems()
       setWorkItems(items.map(convertWorkItem))
     } catch (error) {
       console.error("加载工作记录失败:", error)
     }
   }
 
-  const handleAuthSuccess = async () => {
-    const currentUser = await supabaseAuth.getCurrentUser()
-    if (currentUser) {
-      setUser(currentUser)
-      const profile = await supabaseAuth.getUserProfile(currentUser.id)
-      setUserProfile(profile)
-      await loadWorkItems(currentUser.id)
-    }
+  const handleAuthSuccess = async (user: UserSession) => {
+    setUser(user)
+    await loadWorkItems()
   }
 
   const addWorkItem = async (item: Omit<WorkItem, "id" | "userId" | "createdAt">) => {
-    if (!user) return
-
     try {
-      const newItem = await supabaseDataManager.addWorkItem(user.id, {
+      const newItem = await clientData.addWorkItem({
         date: item.date,
         category: item.category,
         content: item.content,
@@ -171,10 +150,8 @@ export default function HomePage() {
   }
 
   const handleQuickAdd = async (content: string, category: WorkItem["category"]) => {
-    if (!user) return
-
     try {
-      const newItem = await supabaseDataManager.addWorkItem(user.id, {
+      const newItem = await clientData.addWorkItem({
         date: new Date().toISOString(),
         category,
         content,
@@ -191,10 +168,8 @@ export default function HomePage() {
   }
 
   const deleteWorkItem = async (id: string) => {
-    if (!user) return
-
     try {
-      const success = await supabaseDataManager.deleteWorkItem(user.id, id)
+      const success = await clientData.deleteWorkItem(id)
       if (success) {
         setWorkItems((prev) => prev.filter((item) => item.id !== id))
       }
@@ -205,10 +180,8 @@ export default function HomePage() {
   }
 
   const updateWorkItem = async (updatedItem: WorkItem) => {
-    if (!user) return
-
     try {
-      const success = await supabaseDataManager.updateWorkItem(user.id, updatedItem.id, {
+      const success = await clientData.updateWorkItem(updatedItem.id, {
         date: updatedItem.date,
         category: updatedItem.category,
         content: updatedItem.content,
@@ -226,18 +199,12 @@ export default function HomePage() {
 
   const handleSignOut = async () => {
     try {
-      await supabaseAuth.signOut()
+      await clientAuth.logout()
       setUser(null)
-      setUserProfile(null)
       setWorkItems([])
     } catch (error) {
       console.error("登出失败:", error)
     }
-  }
-
-  // 检查 Supabase 配置
-  if (!isSupabaseConfigured()) {
-    return <ConfigCheck />
   }
 
   if (loading) {
@@ -270,13 +237,13 @@ export default function HomePage() {
             <div className="flex items-center gap-4">
               <div className="flex items-center gap-3 bg-white rounded-xl p-3 shadow-sm border border-slate-200">
                 <Avatar className="ring-2 ring-slate-100">
-                  <AvatarImage src={userProfile?.avatar_url || "/placeholder.svg?height=40&width=40"} />
+                  <AvatarImage src={user.avatar || "/placeholder.svg?height=40&width=40"} />
                   <AvatarFallback className="bg-gradient-to-br from-slate-400 to-slate-600 text-white">
                     <UserIcon className="h-4 w-4" />
                   </AvatarFallback>
                 </Avatar>
                 <div className="text-sm">
-                  <p className="font-medium text-slate-800">{userProfile?.full_name || "用户"}</p>
+                  <p className="font-medium text-slate-800">{user.fullName}</p>
                   <p className="text-slate-500">{user.email}</p>
                 </div>
               </div>
