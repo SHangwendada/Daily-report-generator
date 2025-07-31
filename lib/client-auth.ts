@@ -70,12 +70,19 @@ export class ClientAuthManager {
       const response = await fetch("/api/auth/me")
 
       if (!response.ok) {
+        // 401 未登录是正常情况，不需要打印错误
+        if (response.status === 401) {
+          return null
+        }
+        const errorData = await response.json().catch(() => ({ error: "未知错误" }))
+        console.error("获取用户信息API错误:", errorData)
         return null
       }
 
       const data = await response.json()
       return data.user
     } catch (error) {
+      console.error("获取用户信息失败:", error)
       return null
     }
   }

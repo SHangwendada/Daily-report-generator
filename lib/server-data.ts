@@ -31,8 +31,10 @@ export async function readUsers(): Promise<User[]> {
   await ensureDataDir()
   try {
     const data = await fs.readFile(USERS_FILE, "utf-8")
-    return JSON.parse(data)
-  } catch {
+    const users = JSON.parse(data)
+    return Array.isArray(users) ? users : []
+  } catch (error) {
+    console.log("用户文件不存在或为空，创建新文件")
     return []
   }
 }
@@ -48,8 +50,10 @@ export async function readWorkItems(): Promise<WorkItemServer[]> {
   await ensureDataDir()
   try {
     const data = await fs.readFile(WORK_ITEMS_FILE, "utf-8")
-    return JSON.parse(data)
-  } catch {
+    const workItems = JSON.parse(data)
+    return Array.isArray(workItems) ? workItems : []
+  } catch (error) {
+    console.log("工作记录文件不存在或为空，创建新文件")
     return []
   }
 }

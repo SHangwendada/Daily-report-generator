@@ -16,7 +16,13 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ workItems })
   } catch (error) {
     console.error("获取工作记录失败:", error)
-    return NextResponse.json({ error: "获取工作记录失败" }, { status: 500 })
+    return NextResponse.json(
+      {
+        error: "获取工作记录失败",
+        details: error instanceof Error ? error.message : "未知错误",
+      },
+      { status: 500 },
+    )
   }
 }
 
@@ -29,7 +35,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "未登录" }, { status: 401 })
     }
 
-    const { date, category, content, images } = await request.json()
+    const body = await request.json()
+    const { date, category, content, images } = body
 
     // 验证输入
     if (!date || !category || !content) {
@@ -46,6 +53,12 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ workItem: newItem })
   } catch (error) {
     console.error("添加工作记录失败:", error)
-    return NextResponse.json({ error: "添加工作记录失败" }, { status: 500 })
+    return NextResponse.json(
+      {
+        error: "添加工作记录失败",
+        details: error instanceof Error ? error.message : "未知错误",
+      },
+      { status: 500 },
+    )
   }
 }

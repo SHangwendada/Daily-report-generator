@@ -123,11 +123,14 @@ export default function HomePage() {
       setWorkItems(items.map(convertWorkItem))
     } catch (error) {
       console.error("加载工作记录失败:", error)
+      // 不显示错误提示，因为可能是首次使用或网络问题
+      setWorkItems([])
     }
   }
 
   const handleAuthSuccess = async (user: UserSession) => {
     setUser(user)
+    // 登录成功后加载工作记录，即使失败也不影响登录状态
     await loadWorkItems()
   }
 

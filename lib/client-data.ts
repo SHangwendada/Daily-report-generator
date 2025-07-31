@@ -7,13 +7,16 @@ export class ClientDataManager {
       const response = await fetch("/api/work-items")
 
       if (!response.ok) {
-        throw new Error("获取工作记录失败")
+        const errorData = await response.json().catch(() => ({ error: "未知错误" }))
+        console.error("API错误:", errorData)
+        throw new Error(errorData.error || `HTTP ${response.status}`)
       }
 
       const data = await response.json()
-      return data.workItems
+      return data.workItems || []
     } catch (error) {
       console.error("获取工作记录失败:", error)
+      // 返回空数组而不是抛出错误，避免阻塞应用
       return []
     }
   }
@@ -35,7 +38,9 @@ export class ClientDataManager {
       })
 
       if (!response.ok) {
-        throw new Error("添加工作记录失败")
+        const errorData = await response.json().catch(() => ({ error: "未知错误" }))
+        console.error("添加工作记录API错误:", errorData)
+        throw new Error(errorData.error || `HTTP ${response.status}`)
       }
 
       const data = await response.json()
@@ -65,6 +70,11 @@ export class ClientDataManager {
         body: JSON.stringify(updates),
       })
 
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: "未知错误" }))
+        console.error("更新工作记录API错误:", errorData)
+      }
+
       return response.ok
     } catch (error) {
       console.error("更新工作记录失败:", error)
@@ -78,6 +88,11 @@ export class ClientDataManager {
       const response = await fetch(`/api/work-items/${id}`, {
         method: "DELETE",
       })
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: "未知错误" }))
+        console.error("删除工作记录API错误:", errorData)
+      }
 
       return response.ok
     } catch (error) {
@@ -98,7 +113,9 @@ export class ClientDataManager {
       })
 
       if (!response.ok) {
-        throw new Error("文件上传失败")
+        const errorData = await response.json().catch(() => ({ error: "未知错误" }))
+        console.error("文件上传API错误:", errorData)
+        throw new Error(errorData.error || `HTTP ${response.status}`)
       }
 
       const data = await response.json()
