@@ -41,16 +41,33 @@ export async function verifyToken(token: string): Promise<UserSession | null> {
   }
 }
 
-// 从请求中获取当前用户
 export async function getCurrentUser(request?: NextRequest): Promise<UserSession | null> {
   try {
-    const cookieStore = cookies()
+    // 首先尝试从请求头获取 token (用于 API 调用)
+    if (request) {
+      const authHeader = request.headers.get("authorization")
+      if (authHeader?.startsWith("Bearer ")) {
+        const token = authHeader.substring(7)
+        return await verifyToken(token)
+      }
+    }
+
+    // 然后尝试从 cookie 获取 token
+    const cookieStore = await cookies()
     const token = cookieStore.get("auth-token")?.value
 
-    if (!token) return null
+    if (!token) {
+      console.log("[v0] No auth token found in cookies")
+      return null
+    }
 
-    return await verifyToken(token)
-  } catch {
+    const user = await verifyToken(token)
+    if (!user) {
+      console.log("[v0] Token verification failed")
+    }
+    return user
+  } catch (error) {
+    console.error("[v0] getCurrentUser error:", error)
     return null
   }
 }

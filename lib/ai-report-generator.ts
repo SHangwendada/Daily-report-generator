@@ -162,3 +162,6 @@ export function isAIConfigured(): boolean {
   const config = aiConfigManager.getConfig()
   return aiConfigManager.isConfigValid(config)
 }
+
+// Alias for backward compatibility
+export const isDeepSeekConfigured = isAIConfigured
