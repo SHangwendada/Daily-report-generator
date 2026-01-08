@@ -43,27 +43,51 @@ export async function verifyToken(token: string): Promise<UserSession | null> {
 
 export async function getCurrentUser(request?: NextRequest): Promise<UserSession | null> {
   try {
-    // 首先尝试从请求头获取 token (用于 API 调用)
+    let token: string | undefined
+
+    // 首先尝试从请求头获取 Bearer token (用于 MCP API 调用)
     if (request) {
       const authHeader = request.headers.get("authorization")
       if (authHeader?.startsWith("Bearer ")) {
-        const token = authHeader.substring(7)
-        return await verifyToken(token)
+        token = authHeader.substring(7)
+        console.log("[v0] Found Bearer token in Authorization header")
       }
     }
 
-    // 然后尝试从 cookie 获取 token
-    const cookieStore = await cookies()
-    const token = cookieStore.get("auth-token")?.value
+    // 然后尝试从 request cookies 获取 token (API 路由)
+    if (!token && request) {
+      token = request.cookies.get("auth-token")?.value
+      if (token) {
+        console.log("[v0] Found auth token in request cookies")
+      }
+    }
+
+    // 最后尝试从 next/headers cookies 获取 token (服务器组件)
+    if (!token) {
+      try {
+        // 兼容同步和异步版本的 cookies()
+        const cookieStore = cookies()
+        // 处理 cookies() 可能是 Promise 的情况
+        const resolvedCookieStore = cookieStore instanceof Promise ? await cookieStore : cookieStore
+        token = resolvedCookieStore.get("auth-token")?.value
+        if (token) {
+          console.log("[v0] Found auth token in next/headers cookies")
+        }
+      } catch (e) {
+        console.log("[v0] Could not access next/headers cookies:", e)
+      }
+    }
 
     if (!token) {
-      console.log("[v0] No auth token found in cookies")
+      console.log("[v0] No auth token found anywhere")
       return null
     }
 
     const user = await verifyToken(token)
     if (!user) {
       console.log("[v0] Token verification failed")
+    } else {
+      console.log("[v0] User authenticated:", user.email)
     }
     return user
   } catch (error) {
@@ -82,20 +106,28 @@ export async function verifyPassword(password: string, hashedPassword: string): 
   return await bcrypt.compare(password, hashedPassword)
 }
 
-// 设置认证 Cookie
-export function setAuthCookie(token: string) {
-  const cookieStore = cookies()
-  cookieStore.set("auth-token", token, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
-    maxAge: 60 * 60 * 24 * 7, // 7 days
-    path: "/",
-  })
+export async function setAuthCookie(token: string) {
+  try {
+    const cookieStore = cookies()
+    const resolvedCookieStore = cookieStore instanceof Promise ? await cookieStore : cookieStore
+    resolvedCookieStore.set("auth-token", token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      maxAge: 60 * 60 * 24 * 7, // 7 days
+      path: "/",
+    })
+  } catch (e) {
+    console.error("[v0] setAuthCookie error:", e)
+  }
 }
 
-// 清除认证 Cookie
-export function clearAuthCookie() {
-  const cookieStore = cookies()
-  cookieStore.delete("auth-token")
+export async function clearAuthCookie() {
+  try {
+    const cookieStore = cookies()
+    const resolvedCookieStore = cookieStore instanceof Promise ? await cookieStore : cookieStore
+    resolvedCookieStore.delete("auth-token")
+  } catch (e) {
+    console.error("[v0] clearAuthCookie error:", e)
+  }
 }
