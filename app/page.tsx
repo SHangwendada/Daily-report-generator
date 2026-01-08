@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo } from "react"
 import { format, startOfWeek, endOfWeek, eachDayOfInterval, isSameDay, parseISO } from "date-fns"
 import { zhCN } from "date-fns/locale"
-import { Calendar, Download, FileText, Clock, LogOut, UserIcon, TrendingUp, BarChart3 } from "lucide-react"
+import { Calendar, Download, FileText, Clock, LogOut, UserIcon, BarChart3 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -15,10 +15,8 @@ import { WeeklyReportDialog } from "@/components/weekly-report-dialog"
 import { EditWorkDialog } from "@/components/edit-work-dialog"
 import { ReportSettingsDialog } from "@/components/report-settings-dialog"
 import { AIReportDialog } from "@/components/ai-report-dialog"
-import { ProductivityFeatures } from "@/components/productivity-features"
 import { QuickActions } from "@/components/quick-actions"
 import { PeriodSummary } from "@/components/period-summary"
-import { AIWorkInsights } from "@/components/ai-work-insights"
 import { generateWeeklyReport, defaultReportSettings, type ReportSettings } from "@/lib/report-generator"
 import { clientAuth } from "@/lib/client-auth"
 import { clientData } from "@/lib/client-data"
@@ -274,18 +272,12 @@ export default function HomePage() {
         </div>
 
         <Tabs defaultValue="daily" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4 bg-white shadow-sm border border-slate-200">
+          <TabsList className="grid w-full grid-cols-3 bg-white shadow-sm border border-slate-200">
             <TabsTrigger
               value="daily"
               className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-slate-500 data-[state=active]:to-slate-700 data-[state=active]:text-white"
             >
               每日记录
-            </TabsTrigger>
-            <TabsTrigger
-              value="analytics"
-              className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-slate-500 data-[state=active]:to-slate-700 data-[state=active]:text-white"
-            >
-              数据分析
             </TabsTrigger>
             <TabsTrigger
               value="summary"
@@ -429,28 +421,6 @@ export default function HomePage() {
                 </div>
               </CardContent>
             </Card>
-          </TabsContent>
-
-          <TabsContent value="analytics" className="space-y-6">
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              <div className="lg:col-span-2">
-                <Card className="shadow-lg border-0 bg-white/90 backdrop-blur-sm">
-                  <CardHeader className="bg-gradient-to-r from-emerald-400 to-teal-500 text-white rounded-t-lg">
-                    <CardTitle className="flex items-center gap-2">
-                      <TrendingUp className="h-5 w-5" />
-                      工作效率分析
-                    </CardTitle>
-                    <CardDescription className="text-emerald-100">基于工作数据的智能分析和建议</CardDescription>
-                  </CardHeader>
-                  <CardContent className="p-6">
-                    <ProductivityFeatures workItems={workItems} weekStart={currentWeekStart} />
-                  </CardContent>
-                </Card>
-              </div>
-              <div>
-                <AIWorkInsights workItems={workItems} weekStart={currentWeekStart} />
-              </div>
-            </div>
           </TabsContent>
 
           <TabsContent value="summary" className="space-y-6">
