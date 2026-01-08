@@ -10,8 +10,11 @@
 
 @layer base {
   :root {
-    --font-sans: var(--font-geist-sans);
-    --font-mono: var(--font-geist-mono);
+    /* 使用本地系统字体，避免网络请求 Google Fonts */
+    --font-sans: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", "Segoe UI", Roboto,
+      "Helvetica Neue", Arial, sans-serif;
+    --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Monaco, Consolas, "Liberation Mono", "Courier New",
+      monospace;
     --background: 0 0% 100%;
     --foreground: 0 0% 3.9%;
     --card: 0 0% 100%;
