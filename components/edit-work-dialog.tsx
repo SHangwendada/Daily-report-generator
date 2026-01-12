@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { format } from "date-fns"
 import { zhCN } from "date-fns/locale"
 import { CalendarIcon, Sparkles, Loader2, Settings } from "lucide-react"
@@ -16,6 +16,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
+import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
@@ -40,12 +41,32 @@ export function EditWorkDialog({ open, onOpenChange, onUpdate, workItem }: EditW
   const [images, setImages] = useState<string[]>(workItem.images || [])
   const [optimizing, setOptimizing] = useState(false)
   const [configured, setConfigured] = useState(isAIConfigured())
+  const [auditCount, setAuditCount] = useState<number>(workItem.auditCount || 1)
+  const [vulnerabilityLevel, setVulnerabilityLevel] = useState<WorkItem["vulnerabilityLevel"]>(
+    workItem.vulnerabilityLevel || "无",
+  )
+  const [vulnerabilityDesc, setVulnerabilityDesc] = useState(workItem.vulnerabilityDesc || "")
+
+  useEffect(() => {
+    setDate(new Date(workItem.date))
+    setCategory(workItem.category)
+    setContent(workItem.content)
+    setImages(workItem.images || [])
+    setAuditCount(workItem.auditCount || 1)
+    setVulnerabilityLevel(workItem.vulnerabilityLevel || "无")
+    setVulnerabilityDesc(workItem.vulnerabilityDesc || "")
+  }, [workItem])
+
+  useEffect(() => {
+    if (category !== "日常审计") {
+      setAuditCount(1)
+      setVulnerabilityLevel("无")
+      setVulnerabilityDesc("")
+    }
+  }, [category])
 
   const handleOptimizeContent = async () => {
-    if (!configured) {
-      return
-    }
-
+    if (!configured) return
     if (!content.trim()) return
 
     setOptimizing(true)
@@ -70,6 +91,18 @@ export function EditWorkDialog({ open, onOpenChange, onUpdate, workItem }: EditW
       category,
       content: content.trim(),
       images,
+    }
+
+    // 如果是日常审计，添加审计专用字段
+    if (category === "日常审计") {
+      updatedItem.auditCount = auditCount
+      updatedItem.vulnerabilityLevel = vulnerabilityLevel
+      updatedItem.vulnerabilityDesc = vulnerabilityDesc
+    } else {
+      // 清除审计字段
+      delete updatedItem.auditCount
+      delete updatedItem.vulnerabilityLevel
+      delete updatedItem.vulnerabilityDesc
     }
 
     onUpdate(updatedItem)
@@ -123,6 +156,76 @@ export function EditWorkDialog({ open, onOpenChange, onUpdate, workItem }: EditW
               </SelectContent>
             </Select>
           </div>
+
+          {category === "日常审计" && (
+            <div className="space-y-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
+              <h4 className="font-medium text-blue-800">审计详情</h4>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="auditCount">审计单数</Label>
+                  <Input
+                    id="auditCount"
+                    type="number"
+                    min={1}
+                    value={auditCount}
+                    onChange={(e) => setAuditCount(Number(e.target.value) || 1)}
+                    className="bg-white"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="vulnerabilityLevel">漏洞等级</Label>
+                  <Select
+                    value={vulnerabilityLevel}
+                    onValueChange={(value: WorkItem["vulnerabilityLevel"]) => setVulnerabilityLevel(value)}
+                  >
+                    <SelectTrigger className="bg-white">
+                      <SelectValue placeholder="选择漏洞等级" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="无">无漏洞</SelectItem>
+                      <SelectItem value="低危">
+                        <span className="flex items-center gap-2">
+                          <span className="w-2 h-2 rounded-full bg-green-500"></span>
+                          低危
+                        </span>
+                      </SelectItem>
+                      <SelectItem value="中危">
+                        <span className="flex items-center gap-2">
+                          <span className="w-2 h-2 rounded-full bg-yellow-500"></span>
+                          中危
+                        </span>
+                      </SelectItem>
+                      <SelectItem value="高危">
+                        <span className="flex items-center gap-2">
+                          <span className="w-2 h-2 rounded-full bg-orange-500"></span>
+                          高危
+                        </span>
+                      </SelectItem>
+                      <SelectItem value="严重">
+                        <span className="flex items-center gap-2">
+                          <span className="w-2 h-2 rounded-full bg-red-500"></span>
+                          严重
+                        </span>
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              {vulnerabilityLevel && vulnerabilityLevel !== "无" && (
+                <div className="space-y-2">
+                  <Label htmlFor="vulnerabilityDesc">漏洞描述（可选）</Label>
+                  <Textarea
+                    id="vulnerabilityDesc"
+                    placeholder="描述发现的漏洞..."
+                    value={vulnerabilityDesc}
+                    onChange={(e) => setVulnerabilityDesc(e.target.value)}
+                    className="bg-white"
+                    rows={2}
+                  />
+                </div>
+              )}
+            </div>
+          )}
 
           <div className="space-y-2">
             <div className="flex items-center justify-between">

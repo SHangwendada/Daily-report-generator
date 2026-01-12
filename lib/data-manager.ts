@@ -6,6 +6,9 @@ export interface WorkItem {
   content: string
   images: string[]
   createdAt: string
+  auditCount?: number // 审计单数
+  vulnerabilityLevel?: "严重" | "高危" | "中危" | "低危" | "无" // 漏洞等级
+  vulnerabilityDesc?: string // 漏洞描述
 }
 
 class DataManager {

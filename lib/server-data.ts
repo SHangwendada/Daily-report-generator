@@ -15,6 +15,10 @@ export interface WorkItemServer {
   images: string[]
   createdAt: string
   updatedAt: string
+  // 日常审计专用字段
+  auditCount?: number
+  vulnerabilityLevel?: "严重" | "高危" | "中危" | "低危" | "无"
+  vulnerabilityDesc?: string
 }
 
 // 确保数据目录存在
