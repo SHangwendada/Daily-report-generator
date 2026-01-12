@@ -16,7 +16,7 @@ const defaultReportSettings: ReportSettings = {
 export async function generateAIWeeklyReport(
   workItems: WorkItem[],
   weekStart: Date,
-): Promise<{ text: string; images: Array<{ url: string; category: string; description: string }> }> {
+): Promise<{ text: string; images: Array<{ url: string; category: string; description: string; index: number }> }> {
   const config = aiConfigManager.getConfig()
   if (!config || !aiConfigManager.isConfigValid(config)) {
     throw new Error("请先配置AI模型")
@@ -34,22 +34,28 @@ export async function generateAIWeeklyReport(
     下周计划: workItems.filter((item) => item.category === "下周计划"),
   }
 
-  // 收集所有图片信息
-  const allImages: Array<{ url: string; category: string; description: string; date: string }> = []
-  workItems.forEach((item) => {
-    if (item.images && item.images.length > 0) {
-      item.images.forEach((imageUrl) => {
-        allImages.push({
-          url: imageUrl,
-          category: item.category,
-          description: item.content.substring(0, 50) + "...",
-          date: format(new Date(item.date), "MM月dd日", { locale: zhCN }),
+  const allImages: Array<{ url: string; category: string; description: string; date: string; index: number }> = []
+  let imageIndex = 1
+
+  // 按分类顺序收集图片
+  const categoryOrder = ["日常审计", "项目进度", "其他", "本周遗留问题", "下周计划"]
+  categoryOrder.forEach((category) => {
+    const items = categorizedItems[category as keyof typeof categorizedItems]
+    items.forEach((item) => {
+      if (item.images && item.images.length > 0) {
+        item.images.forEach((imageUrl) => {
+          allImages.push({
+            url: imageUrl,
+            category: item.category,
+            description: item.content.substring(0, 50) + (item.content.length > 50 ? "..." : ""),
+            date: format(new Date(item.date), "MM月dd日", { locale: zhCN }),
+            index: imageIndex++,
+          })
         })
-      })
-    }
+      }
+    })
   })
 
-  // 构建包含图片信息的提示词
   const prompt = `
 请根据以下工作记录，生成一份专业的周报总结。周报时间范围：${weekRange}
 
@@ -57,48 +63,41 @@ export async function generateAIWeeklyReport(
 ${Object.entries(categorizedItems)
   .map(
     ([category, items]) =>
-      `${category}：\n${items
-        .map((item) => {
-          const imageInfo = item.images && item.images.length > 0 ? ` [包含${item.images.length}张相关图片]` : ""
-          return `- ${item.content} (${format(new Date(item.date), "MM月dd日", { locale: zhCN })})${imageInfo}`
-        })
-        .join("\n")}`,
+      `${category}：\n${
+        items.length > 0
+          ? items
+              .map((item) => `- ${item.content} (${format(new Date(item.date), "MM月dd日", { locale: zhCN })})`)
+              .join("\n")
+          : "暂无"
+      }`,
   )
   .join("\n\n")}
 
-图片资料统计：
-- 总图片数：${allImages.length}张
-- 图片分布：${Object.entries(categorizedItems)
-    .map(([category, items]) => {
-      const categoryImages = items.reduce((sum, item) => sum + (item.images?.length || 0), 0)
-      return `${category}(${categoryImages}张)`
-    })
-    .join("、")}
-
-请按照以下格式生成周报，要求：
+请按照以下格式生成周报，严格要求：
 1. 语言专业、简洁明了
 2. 突出重点工作成果和进展
-3. 合理归纳和总结
+3. 合理归纳和总结，同类工作可合并描述
 4. 保持原有的五个分类结构
 5. 如果某个分类没有内容，请写"本周暂无相关工作"
-6. 在适当位置提及相关图片资料，如"详见附图"、"如图所示"等
+6. **重要**：不要在文中添加任何[图片1]、[图片2]等标记，图片会自动附在周报末尾
 7. 使用中文回答
+8. 每个分类的内容控制在3-5条以内
 
 格式要求：
 一、日常审计
-[整理和总结日常审计工作，如有图片请提及]
+[整理和总结日常审计工作]
 
 二、项目进度  
-[整理和总结项目进展情况，如有图片请提及]
+[整理和总结项目进展情况]
 
 三、其他
-[整理和总结其他工作内容，如有图片请提及]
+[整理和总结其他工作内容]
 
 四、本周遗留问题
-[整理和总结遗留问题，如有图片请提及]
+[整理和总结遗留问题]
 
 五、下周计划
-[整理和总结下周计划，如有图片请提及]
+[整理和总结下周计划]
 `
 
   try {
@@ -110,8 +109,17 @@ ${Object.entries(categorizedItems)
       maxTokens: 2000,
     })
 
+    const cleanedText = text
+      .replace(/\[图片\d+\]/g, "")
+      .replace(/\[附图\d*\]/g, "")
+      .replace(/（见图\d+）/g, "")
+      .replace(/（如图\d+所示）/g, "")
+      .replace(/详见附图\d*/g, "")
+      .replace(/如图所示/g, "")
+      .trim()
+
     return {
-      text,
+      text: cleanedText,
       images: allImages,
     }
   } catch (error) {

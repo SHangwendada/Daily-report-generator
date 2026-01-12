@@ -10,6 +10,8 @@ export interface ReportSettings {
   headingFontSize: number
   lineSpacing: number
   includeImages: boolean
+  imageMaxWidth: number
+  imageQuality: number
 }
 
 export const defaultReportSettings: ReportSettings = {
@@ -19,6 +21,32 @@ export const defaultReportSettings: ReportSettings = {
   headingFontSize: 14,
   lineSpacing: 1.5,
   includeImages: true,
+  imageMaxWidth: 400, // 最大宽度像素
+  imageQuality: 0.9, // 图片质量
+}
+
+async function getImageDimensions(imageUrl: string): Promise<{ width: number; height: number }> {
+  return new Promise((resolve, reject) => {
+    const img = new Image()
+    img.onload = () => resolve({ width: img.width, height: img.height })
+    img.onerror = reject
+    img.src = imageUrl
+  })
+}
+
+function calculateAspectRatio(
+  originalWidth: number,
+  originalHeight: number,
+  maxWidth: number,
+): { width: number; height: number } {
+  if (originalWidth <= maxWidth) {
+    return { width: originalWidth, height: originalHeight }
+  }
+  const ratio = maxWidth / originalWidth
+  return {
+    width: maxWidth,
+    height: Math.round(originalHeight * ratio),
+  }
 }
 
 export async function generateWeeklyReport(
@@ -41,13 +69,13 @@ export async function generateWeeklyReport(
     { name: "下周计划", title: "五、下周计划" },
   ]
 
-  const children = [
+  const children: Paragraph[] = [
     new Paragraph({
       children: [
         new TextRun({
           text: `周报 (${weekRange})`,
           font: settings.fontFamily,
-          size: settings.titleFontSize * 2, // docx uses half-points
+          size: settings.titleFontSize * 2,
           bold: true,
         }),
       ],
@@ -61,10 +89,12 @@ export async function generateWeeklyReport(
     }),
   ]
 
+  const allImages: Array<{ url: string; category: string; content: string; index: number }> = []
+  let imageIndex = 1
+
   for (const { name, title } of categories) {
     const items = getItemsByCategory(name)
 
-    // 添加标题
     children.push(
       new Paragraph({
         children: [
@@ -84,7 +114,6 @@ export async function generateWeeklyReport(
       }),
     )
 
-    // 添加内容
     if (items.length === 0) {
       children.push(
         new Paragraph({
@@ -123,42 +152,96 @@ export async function generateWeeklyReport(
           }),
         )
 
-        // 添加图片（如果启用且有图片）
+        // 收集图片信息
         if (settings.includeImages && item.images && item.images.length > 0) {
           for (const imageUrl of item.images) {
-            try {
-              if (imageUrl.startsWith("data:image/")) {
-                const base64Data = imageUrl.split(",")[1]
-                const binaryString = atob(base64Data)
-                const bytes = new Uint8Array(binaryString.length)
-                for (let i = 0; i < binaryString.length; i++) {
-                  bytes[i] = binaryString.charCodeAt(i)
-                }
-
-                children.push(
-                  new Paragraph({
-                    children: [
-                      new ImageRun({
-                        data: bytes.buffer,
-                        transformation: {
-                          width: 200,
-                          height: 150,
-                        },
-                      }),
-                    ],
-                    spacing: {
-                      after: 100,
-                      line: Math.round(settings.lineSpacing * 240),
-                      lineRule: "auto",
-                    },
-                  }),
-                )
-              }
-            } catch (error) {
-              console.error("加载图片失败:", error)
-            }
+            allImages.push({
+              url: imageUrl,
+              category: name,
+              content: item.content.substring(0, 30),
+              index: imageIndex++,
+            })
           }
         }
+      }
+    }
+  }
+
+  if (allImages.length > 0) {
+    children.push(
+      new Paragraph({
+        children: [
+          new TextRun({
+            text: "六、附图",
+            font: settings.fontFamily,
+            size: settings.headingFontSize * 2,
+            bold: true,
+          }),
+        ],
+        spacing: {
+          before: 400,
+          after: 200,
+          line: Math.round(settings.lineSpacing * 240),
+          lineRule: "auto",
+        },
+      }),
+    )
+
+    for (const imageInfo of allImages) {
+      try {
+        if (imageInfo.url.startsWith("data:image/")) {
+          // 获取图片尺寸
+          const dimensions = await getImageDimensions(imageInfo.url)
+          const scaledDimensions = calculateAspectRatio(dimensions.width, dimensions.height, settings.imageMaxWidth)
+
+          // 添加图片标题
+          children.push(
+            new Paragraph({
+              children: [
+                new TextRun({
+                  text: `图${imageInfo.index}：${imageInfo.content}...`,
+                  font: settings.fontFamily,
+                  size: settings.fontSize * 2,
+                  bold: true,
+                }),
+              ],
+              spacing: {
+                before: 200,
+                after: 100,
+                line: Math.round(settings.lineSpacing * 240),
+                lineRule: "auto",
+              },
+            }),
+          )
+
+          const base64Data = imageInfo.url.split(",")[1]
+          const binaryString = atob(base64Data)
+          const bytes = new Uint8Array(binaryString.length)
+          for (let i = 0; i < binaryString.length; i++) {
+            bytes[i] = binaryString.charCodeAt(i)
+          }
+
+          children.push(
+            new Paragraph({
+              children: [
+                new ImageRun({
+                  data: bytes.buffer,
+                  transformation: {
+                    width: scaledDimensions.width,
+                    height: scaledDimensions.height,
+                  },
+                }),
+              ],
+              spacing: {
+                after: 200,
+                line: Math.round(settings.lineSpacing * 240),
+                lineRule: "auto",
+              },
+            }),
+          )
+        }
+      } catch (error) {
+        console.error("加载图片失败:", error)
       }
     }
   }
