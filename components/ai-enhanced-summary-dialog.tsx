@@ -1,9 +1,9 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useMemo } from "react"
 import { format } from "date-fns"
 import { zhCN } from "date-fns/locale"
-import { Sparkles, Copy, Download, Loader2, Settings, ImageIcon, BarChart3, TrendingUp } from "lucide-react"
+import { Sparkles, Copy, Download, Loader2, Settings, ImageIcon, BarChart3, TrendingUp, Shield } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -27,12 +27,49 @@ interface AIEnhancedSummaryDialogProps {
   periodType: "monthly" | "yearly"
 }
 
+const vulnerabilityLevelConfig = {
+  critical: { label: "严重", color: "bg-red-600", textColor: "text-red-600", bgLight: "bg-red-50" },
+  high: { label: "高危", color: "bg-orange-500", textColor: "text-orange-500", bgLight: "bg-orange-50" },
+  medium: { label: "中危", color: "bg-yellow-500", textColor: "text-yellow-500", bgLight: "bg-yellow-50" },
+  low: { label: "低危", color: "bg-blue-500", textColor: "text-blue-500", bgLight: "bg-blue-50" },
+  none: { label: "无漏洞", color: "bg-gray-400", textColor: "text-gray-500", bgLight: "bg-gray-50" },
+}
+
 export function AIEnhancedSummaryDialog({ workItems, period, periodType }: AIEnhancedSummaryDialogProps) {
   const [open, setOpen] = useState(false)
   const [aiSummary, setAiSummary] = useState<any>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [configured, setConfigured] = useState(isAIConfigured())
+
+  const vulnerabilityStats = useMemo(() => {
+    const auditItems = workItems.filter((item) => item.category === "日常审计")
+    const totalAuditCount = auditItems.reduce((sum, item) => sum + (item.auditCount || 0), 0)
+
+    const levelCounts = {
+      critical: 0,
+      high: 0,
+      medium: 0,
+      low: 0,
+      none: 0,
+    }
+
+    auditItems.forEach((item) => {
+      const level = item.vulnerabilityLevel || "none"
+      if (level in levelCounts) {
+        levelCounts[level as keyof typeof levelCounts] += item.auditCount || 1
+      }
+    })
+
+    const totalVulnerabilities = levelCounts.critical + levelCounts.high + levelCounts.medium + levelCounts.low
+
+    return {
+      auditItems,
+      totalAuditCount,
+      levelCounts,
+      totalVulnerabilities,
+    }
+  }, [workItems])
 
   const handleGenerateAISummary = async () => {
     if (!configured) {
@@ -122,6 +159,78 @@ ${aiSummary.imageAnalysis}
         </DialogHeader>
 
         <div className="space-y-4">
+          {vulnerabilityStats.auditItems.length > 0 && (
+            <Card className="border-2 border-blue-200 bg-gradient-to-br from-blue-50 to-indigo-50">
+              <CardHeader className="pb-2">
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <Shield className="h-5 w-5 text-blue-600" />
+                  {periodType === "monthly" ? "本月" : "本年"}漏洞统计
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-2 md:grid-cols-6 gap-3 mb-4">
+                  <div className="bg-white p-3 rounded-lg text-center border shadow-sm">
+                    <div className="text-2xl font-bold text-blue-600">{vulnerabilityStats.totalAuditCount}</div>
+                    <div className="text-xs text-gray-600">审计总单数</div>
+                  </div>
+                  <div className="bg-white p-3 rounded-lg text-center border shadow-sm">
+                    <div className="text-2xl font-bold text-purple-600">{vulnerabilityStats.totalVulnerabilities}</div>
+                    <div className="text-xs text-gray-600">发现漏洞</div>
+                  </div>
+                  {Object.entries(vulnerabilityStats.levelCounts).map(([level, count]) => {
+                    if (level === "none") return null
+                    const config = vulnerabilityLevelConfig[level as keyof typeof vulnerabilityLevelConfig]
+                    return (
+                      <div key={level} className={`${config.bgLight} p-3 rounded-lg text-center border shadow-sm`}>
+                        <div className={`text-2xl font-bold ${config.textColor}`}>{count}</div>
+                        <div className="text-xs text-gray-600">{config.label}</div>
+                      </div>
+                    )
+                  })}
+                </div>
+
+                {/* 漏洞分布条形图 */}
+                {vulnerabilityStats.totalVulnerabilities > 0 && (
+                  <div className="space-y-2">
+                    <div className="text-sm font-medium text-gray-700">漏洞等级分布</div>
+                    <div className="h-6 flex rounded-full overflow-hidden">
+                      {Object.entries(vulnerabilityStats.levelCounts).map(([level, count]) => {
+                        if (level === "none" || count === 0) return null
+                        const config = vulnerabilityLevelConfig[level as keyof typeof vulnerabilityLevelConfig]
+                        const percentage = (count / vulnerabilityStats.totalVulnerabilities) * 100
+                        return (
+                          <div
+                            key={level}
+                            className={`${config.color} flex items-center justify-center text-white text-xs font-medium`}
+                            style={{ width: `${percentage}%` }}
+                            title={`${config.label}: ${count}个 (${percentage.toFixed(1)}%)`}
+                          >
+                            {percentage > 15 && `${config.label} ${count}`}
+                          </div>
+                        )
+                      })}
+                    </div>
+                    <div className="flex flex-wrap gap-2 text-xs">
+                      {Object.entries(vulnerabilityStats.levelCounts).map(([level, count]) => {
+                        if (level === "none" || count === 0) return null
+                        const config = vulnerabilityLevelConfig[level as keyof typeof vulnerabilityLevelConfig]
+                        const percentage = (count / vulnerabilityStats.totalVulnerabilities) * 100
+                        return (
+                          <div key={level} className="flex items-center gap-1">
+                            <div className={`w-3 h-3 rounded ${config.color}`}></div>
+                            <span>
+                              {config.label}: {count} ({percentage.toFixed(1)}%)
+                            </span>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
           {!configured && (
             <Alert className="border-orange-200 bg-orange-50">
               <Settings className="h-4 w-4" />
@@ -171,9 +280,9 @@ ${aiSummary.imageAnalysis}
               <Loader2 className="h-12 w-12 animate-spin text-purple-500 mx-auto mb-4" />
               <p className="text-gray-600 mb-2">AI正在深度分析您的工作记录...</p>
               <div className="flex justify-center gap-4 text-sm text-gray-500">
-                <span>• 分析工作内容</span>
-                <span>• 处理图片信息</span>
-                <span>• 生成智能建议</span>
+                <span>分析工作内容</span>
+                <span>处理图片信息</span>
+                <span>生成智能建议</span>
               </div>
             </div>
           )}
@@ -251,17 +360,15 @@ ${aiSummary.imageAnalysis}
                           </div>
                           <div className="bg-purple-50 p-4 rounded-lg text-center">
                             <div className="text-2xl font-bold text-purple-600">
-                              {workItems.filter((item) => item.images && item.images.length > 0).length}
+                              {vulnerabilityStats.totalAuditCount}
                             </div>
-                            <div className="text-sm text-purple-700">含图片记录</div>
+                            <div className="text-sm text-purple-700">审计单数</div>
                           </div>
-                          <div className="bg-orange-50 p-4 rounded-lg text-center">
-                            <div className="text-2xl font-bold text-orange-600">
-                              {Math.round(
-                                workItems.reduce((sum, item) => sum + item.content.length, 0) / workItems.length,
-                              )}
+                          <div className="bg-red-50 p-4 rounded-lg text-center">
+                            <div className="text-2xl font-bold text-red-600">
+                              {vulnerabilityStats.totalVulnerabilities}
                             </div>
-                            <div className="text-sm text-orange-700">平均字数</div>
+                            <div className="text-sm text-red-700">发现漏洞</div>
                           </div>
                         </div>
                         <pre className="whitespace-pre-wrap text-sm leading-relaxed font-sans bg-gray-50 p-4 rounded-lg">

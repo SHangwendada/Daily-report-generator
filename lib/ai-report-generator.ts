@@ -28,10 +28,73 @@ function generateAuditStats(auditItems: WorkItem[]) {
   for (const item of auditItems) {
     stats.totalCount += item.auditCount || 1
     const level = item.vulnerabilityLevel || "无"
-    stats.vulnerabilities[level] = (stats.vulnerabilities[level] || 0) + 1
+    const levelMap: Record<string, string> = {
+      critical: "严重",
+      high: "高危",
+      medium: "中危",
+      low: "低危",
+      none: "无",
+    }
+    const chineseLevel = levelMap[level] || level
+    stats.vulnerabilities[chineseLevel] = (stats.vulnerabilities[chineseLevel] || 0) + 1
   }
 
   return stats
+}
+
+function cleanImageMarkers(text: string): string {
+  return (
+    text
+      // 中文方括号标记
+      .replace(/【图片\d*】/g, "")
+      .replace(/【附图\d*】/g, "")
+      .replace(/【图\d*】/g, "")
+      // 英文方括号标记
+      .replace(/\[图片\s*\d*\]/g, "")
+      .replace(/\[附图\s*\d*\]/g, "")
+      .replace(/\[图\s*\d*\]/g, "")
+      .replace(/\[Image\s*\d*\]/gi, "")
+      .replace(/\[Fig\s*\d*\]/gi, "")
+      .replace(/\[Figure\s*\d*\]/gi, "")
+      .replace(/\[Pic\s*\d*\]/gi, "")
+      .replace(/\[Picture\s*\d*\]/gi, "")
+      .replace(/\[Photo\s*\d*\]/gi, "")
+      // 中文圆括号标记
+      .replace(/（图片\d*）/g, "")
+      .replace(/（见图\d*）/g, "")
+      .replace(/（如图\d*）/g, "")
+      .replace(/（如图\d*所示）/g, "")
+      .replace(/（如图所示）/g, "")
+      .replace(/（详见附图\d*）/g, "")
+      .replace(/（附图\d*）/g, "")
+      // 英文圆括号标记
+      .replace(/$$图片\d*$$/g, "")
+      .replace(/$$见图\d*$$/g, "")
+      .replace(/$$如图\d*$$/g, "")
+      .replace(/$$如图\d*所示$$/g, "")
+      .replace(/$$如图所示$$/g, "")
+      .replace(/$$详见附图\d*$$/g, "")
+      .replace(/$$附图\d*$$/g, "")
+      .replace(/$$see\s*fig[ure]*\s*\d*$$/gi, "")
+      .replace(/$$see\s*image\s*\d*$$/gi, "")
+      // 独立短语
+      .replace(/详见附图\d*/g, "")
+      .replace(/如图\d*所示/g, "")
+      .replace(/如图所示/g, "")
+      .replace(/见下图\d*/g, "")
+      .replace(/如下图\d*/g, "")
+      .replace(/见图\d*/g, "")
+      .replace(/附图\d*/g, "")
+      .replace(/下图\d*/g, "")
+      .replace(/上图\d*/g, "")
+      // 清理多余的标点和空格
+      .replace(/，\s*，/g, "，")
+      .replace(/。\s*。/g, "。")
+      .replace(/\s+，/g, "，")
+      .replace(/\s+。/g, "。")
+      .replace(/\n{3,}/g, "\n\n")
+      .trim()
+  )
 }
 
 export async function generateAIWeeklyReport(
@@ -60,6 +123,18 @@ export async function generateAIWeeklyReport(
 
   const auditStats = generateAuditStats(categorizedItems.日常审计)
 
+  const imagesByCategory: Record<
+    string,
+    Array<{
+      url: string
+      category: string
+      description: string
+      date: string
+      index: number
+      itemId: string
+    }>
+  > = {}
+
   const allImages: Array<{
     url: string
     category: string
@@ -68,22 +143,26 @@ export async function generateAIWeeklyReport(
     index: number
     itemId: string
   }> = []
+
   let imageIndex = 1
 
   const categoryOrder = ["日常审计", "项目进度", "其他", "本周遗留问题", "下周计划"]
   categoryOrder.forEach((category) => {
     const items = categorizedItems[category as keyof typeof categorizedItems]
+    imagesByCategory[category] = []
     items.forEach((item) => {
       if (item.images && item.images.length > 0) {
         item.images.forEach((imageUrl) => {
-          allImages.push({
+          const imgData = {
             url: imageUrl,
             category: item.category,
             description: item.content.substring(0, 50) + (item.content.length > 50 ? "..." : ""),
             date: format(new Date(item.date), "MM月dd日", { locale: zhCN }),
             index: imageIndex++,
             itemId: item.id,
-          })
+          }
+          allImages.push(imgData)
+          imagesByCategory[category].push(imgData)
         })
       }
     })
@@ -92,7 +171,7 @@ export async function generateAIWeeklyReport(
   let auditSummary = ""
   if (categorizedItems.日常审计.length > 0) {
     const vulnSummary = Object.entries(auditStats.vulnerabilities)
-      .filter(([_, count]) => count > 0)
+      .filter(([level, count]) => count > 0 && level !== "无")
       .map(([level, count]) => `${level}${count}个`)
       .join("、")
     auditSummary = `本周共完成${auditStats.totalCount}单审计工作。漏洞发现情况：${vulnSummary || "无漏洞"}。`
@@ -102,8 +181,16 @@ export async function generateAIWeeklyReport(
     .map((item) => {
       let detail = item.content
       if (item.auditCount) detail = `[${item.auditCount}单] ${detail}`
-      if (item.vulnerabilityLevel && item.vulnerabilityLevel !== "无") {
-        detail += ` (发现${item.vulnerabilityLevel}漏洞)`
+      const levelMap: Record<string, string> = {
+        critical: "严重",
+        high: "高危",
+        medium: "中危",
+        low: "低危",
+        none: "无",
+      }
+      const chineseLevel = levelMap[item.vulnerabilityLevel || "none"] || item.vulnerabilityLevel
+      if (chineseLevel && chineseLevel !== "无") {
+        detail += ` (发现${chineseLevel}漏洞)`
       }
       if (item.vulnerabilityDesc) {
         detail += ` - ${item.vulnerabilityDesc}`
@@ -157,32 +244,39 @@ ${
     : "暂无"
 }
 
-请按照以下格式生成周报，严格要求：
-1. 语言专业、简洁明了
-2. 突出重点工作成果和进展
-3. 合理归纳和总结，同类工作可合并描述
-4. 保持原有的五个分类结构
-5. 如果某个分类没有内容，请写"本周暂无相关工作"
-6. **极其重要**：绝对不要在文中添加任何图片标记，包括但不限于：[图片1]、[图片2]、[附图]、（见图X）、（如图所示）等任何与图片相关的标记或引用。图片会由系统自动处理，你只需要写纯文字内容。
-7. 使用中文回答
-8. 每个分类的内容控制在3-5条以内
-9. 日常审计部分需要包含审计总单数和漏洞统计信息
+请按照以下格式生成周报：
 
-格式要求：
+【重要约束 - 必须严格遵守】
+1. 禁止添加任何形式的图片引用或标记！包括但不限于：
+   - [图片1]、[图片2]、[图片X] 等
+   - [附图1]、[附图X] 等
+   - （见图1）、（如图所示）等
+   - 任何包含"图片"、"附图"、"见图"、"如图"的文字
+2. 只输出纯文字内容，图片会由系统另外处理
+3. 不要在任何地方提及图片或截图
+
+【格式要求】
 一、日常审计
-[先写统计摘要，包括总单数和漏洞分布，然后整理具体审计工作]
+[先写统计摘要（总单数+漏洞分布），然后列举具体审计工作]
 
-二、项目进度  
-[整理和总结项目进展情况]
+二、项目进度
+[整理和总结项目进展]
 
 三、其他
-[整理和总结其他工作内容]
+[整理其他工作内容]
 
 四、本周遗留问题
-[整理和总结遗留问题]
+[整理遗留问题]
 
 五、下周计划
-[整理和总结下周计划]
+[整理下周计划]
+
+【内容要求】
+- 语言专业、简洁
+- 同类工作可合并描述
+- 每个分类3-5条以内
+- 无内容的分类写"本周暂无相关工作"
+- 使用中文
 `
 
   try {
@@ -194,24 +288,7 @@ ${
       maxTokens: 2000,
     })
 
-    const cleanedText = text
-      .replace(/\[图片\d*\]/g, "")
-      .replace(/\[附图\d*\]/g, "")
-      .replace(/（见图\d*）/g, "")
-      .replace(/$$见图\d*$$/g, "")
-      .replace(/（如图\d*所示）/g, "")
-      .replace(/$$如图\d*所示$$/g, "")
-      .replace(/（如图所示）/g, "")
-      .replace(/$$如图所示$$/g, "")
-      .replace(/详见附图\d*/g, "")
-      .replace(/如图所示/g, "")
-      .replace(/见下图/g, "")
-      .replace(/如下图/g, "")
-      .replace(/\[image\d*\]/gi, "")
-      .replace(/\[fig\d*\]/gi, "")
-      .replace(/\[figure\d*\]/gi, "")
-      .replace(/\n{3,}/g, "\n\n") // 清理多余空行
-      .trim()
+    const cleanedText = cleanImageMarkers(text)
 
     return {
       text: cleanedText,
@@ -240,7 +317,7 @@ export async function optimizeWorkContent(content: string): Promise<string> {
 3. 突出关键信息和成果
 4. 控制在100字以内
 5. 使用中文
-6. 不要添加任何图片标记或引用
+6. 禁止添加任何图片标记或引用
 
 请直接返回优化后的内容，不需要其他说明。
 `
@@ -254,7 +331,7 @@ export async function optimizeWorkContent(content: string): Promise<string> {
       maxTokens: 200,
     })
 
-    return text.trim()
+    return cleanImageMarkers(text.trim())
   } catch (error) {
     console.error("AI优化内容失败:", error)
     throw new Error("AI优化失败")

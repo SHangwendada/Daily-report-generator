@@ -1,9 +1,9 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useMemo } from "react"
 import { format, endOfWeek } from "date-fns"
 import { zhCN } from "date-fns/locale"
-import { Sparkles, Copy, Download, Loader2, Settings, FileText, ImageIcon } from "lucide-react"
+import { Sparkles, Copy, Download, Loader2, Settings, FileText, ImageIcon, Shield } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -13,7 +13,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
-import { Card, CardContent } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { generateAIWeeklyReport, isAIConfigured } from "@/lib/ai-report-generator"
 import { AIConfigDialog } from "@/components/ai-config-dialog"
@@ -27,6 +27,14 @@ interface AIReportDialogProps {
   weekStart: Date
 }
 
+const vulnerabilityLevelConfig = {
+  critical: { label: "严重", color: "bg-red-600", textColor: "text-red-600", bgLight: "bg-red-50" },
+  high: { label: "高危", color: "bg-orange-500", textColor: "text-orange-500", bgLight: "bg-orange-50" },
+  medium: { label: "中危", color: "bg-yellow-500", textColor: "text-yellow-500", bgLight: "bg-yellow-50" },
+  low: { label: "低危", color: "bg-blue-500", textColor: "text-blue-500", bgLight: "bg-blue-50" },
+  none: { label: "无漏洞", color: "bg-gray-400", textColor: "text-gray-500", bgLight: "bg-gray-50" },
+}
+
 export function AIReportDialog({ workItems, weekStart }: AIReportDialogProps) {
   const [open, setOpen] = useState(false)
   const [aiReport, setAiReport] = useState<string>("")
@@ -37,6 +45,35 @@ export function AIReportDialog({ workItems, weekStart }: AIReportDialogProps) {
   const [reportSettings, setReportSettings] = useState<ReportSettings>(defaultReportSettings)
 
   const weekEnd = endOfWeek(weekStart, { weekStartsOn: 1 })
+
+  const vulnerabilityStats = useMemo(() => {
+    const auditItems = workItems.filter((item) => item.category === "日常审计")
+    const totalAuditCount = auditItems.reduce((sum, item) => sum + (item.auditCount || 0), 0)
+
+    const levelCounts = {
+      critical: 0,
+      high: 0,
+      medium: 0,
+      low: 0,
+      none: 0,
+    }
+
+    auditItems.forEach((item) => {
+      const level = item.vulnerabilityLevel || "none"
+      if (level in levelCounts) {
+        levelCounts[level as keyof typeof levelCounts] += item.auditCount || 1
+      }
+    })
+
+    const totalVulnerabilities = levelCounts.critical + levelCounts.high + levelCounts.medium + levelCounts.low
+
+    return {
+      auditItems,
+      totalAuditCount,
+      levelCounts,
+      totalVulnerabilities,
+    }
+  }, [workItems])
 
   const handleGenerateAIReport = async () => {
     if (!configured) {
@@ -124,6 +161,74 @@ export function AIReportDialog({ workItems, weekStart }: AIReportDialogProps) {
         </DialogHeader>
 
         <div className="space-y-4">
+          {vulnerabilityStats.auditItems.length > 0 && (
+            <Card className="border-2 border-blue-200 bg-gradient-to-br from-blue-50 to-indigo-50">
+              <CardHeader className="pb-2">
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <Shield className="h-5 w-5 text-blue-600" />
+                  本周漏洞统计
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-3 md:grid-cols-6 gap-2 mb-3">
+                  <div className="bg-white p-2 rounded-lg text-center border shadow-sm">
+                    <div className="text-xl font-bold text-blue-600">{vulnerabilityStats.totalAuditCount}</div>
+                    <div className="text-xs text-gray-600">审计单数</div>
+                  </div>
+                  <div className="bg-white p-2 rounded-lg text-center border shadow-sm">
+                    <div className="text-xl font-bold text-purple-600">{vulnerabilityStats.totalVulnerabilities}</div>
+                    <div className="text-xs text-gray-600">发现漏洞</div>
+                  </div>
+                  {Object.entries(vulnerabilityStats.levelCounts).map(([level, count]) => {
+                    if (level === "none") return null
+                    const config = vulnerabilityLevelConfig[level as keyof typeof vulnerabilityLevelConfig]
+                    return (
+                      <div key={level} className={`${config.bgLight} p-2 rounded-lg text-center border shadow-sm`}>
+                        <div className={`text-xl font-bold ${config.textColor}`}>{count}</div>
+                        <div className="text-xs text-gray-600">{config.label}</div>
+                      </div>
+                    )
+                  })}
+                </div>
+
+                {/* 漏洞分布条形图 */}
+                {vulnerabilityStats.totalVulnerabilities > 0 && (
+                  <div className="space-y-1">
+                    <div className="h-4 flex rounded-full overflow-hidden">
+                      {Object.entries(vulnerabilityStats.levelCounts).map(([level, count]) => {
+                        if (level === "none" || count === 0) return null
+                        const config = vulnerabilityLevelConfig[level as keyof typeof vulnerabilityLevelConfig]
+                        const percentage = (count / vulnerabilityStats.totalVulnerabilities) * 100
+                        return (
+                          <div
+                            key={level}
+                            className={`${config.color} flex items-center justify-center text-white text-xs`}
+                            style={{ width: `${percentage}%` }}
+                            title={`${config.label}: ${count}个`}
+                          />
+                        )
+                      })}
+                    </div>
+                    <div className="flex flex-wrap gap-2 text-xs">
+                      {Object.entries(vulnerabilityStats.levelCounts).map(([level, count]) => {
+                        if (level === "none" || count === 0) return null
+                        const config = vulnerabilityLevelConfig[level as keyof typeof vulnerabilityLevelConfig]
+                        return (
+                          <div key={level} className="flex items-center gap-1">
+                            <div className={`w-2 h-2 rounded ${config.color}`}></div>
+                            <span>
+                              {config.label}: {count}
+                            </span>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
           {!configured && (
             <Alert className="border-orange-200 bg-orange-50">
               <Settings className="h-4 w-4" />
@@ -161,7 +266,7 @@ export function AIReportDialog({ workItems, weekStart }: AIReportDialogProps) {
 
           {aiReport && (
             <div className="space-y-4">
-              <div className="flex gap-2">
+              <div className="flex gap-2 flex-wrap">
                 <Button variant="outline" size="sm" onClick={handleCopyReport}>
                   <Copy className="h-4 w-4 mr-2" />
                   复制内容
