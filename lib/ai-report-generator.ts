@@ -13,10 +13,34 @@ const defaultReportSettings: ReportSettings = {
   includeImages: true,
 }
 
+function generateAuditStats(auditItems: WorkItem[]) {
+  const stats = {
+    totalCount: 0,
+    vulnerabilities: {
+      严重: 0,
+      高危: 0,
+      中危: 0,
+      低危: 0,
+      无: 0,
+    } as Record<string, number>,
+  }
+
+  for (const item of auditItems) {
+    stats.totalCount += item.auditCount || 1
+    const level = item.vulnerabilityLevel || "无"
+    stats.vulnerabilities[level] = (stats.vulnerabilities[level] || 0) + 1
+  }
+
+  return stats
+}
+
 export async function generateAIWeeklyReport(
   workItems: WorkItem[],
   weekStart: Date,
-): Promise<{ text: string; images: Array<{ url: string; category: string; description: string; index: number }> }> {
+): Promise<{
+  text: string
+  images: Array<{ url: string; category: string; description: string; index: number; itemId: string }>
+}> {
   const config = aiConfigManager.getConfig()
   if (!config || !aiConfigManager.isConfigValid(config)) {
     throw new Error("请先配置AI模型")
@@ -34,10 +58,18 @@ export async function generateAIWeeklyReport(
     下周计划: workItems.filter((item) => item.category === "下周计划"),
   }
 
-  const allImages: Array<{ url: string; category: string; description: string; date: string; index: number }> = []
+  const auditStats = generateAuditStats(categorizedItems.日常审计)
+
+  const allImages: Array<{
+    url: string
+    category: string
+    description: string
+    date: string
+    index: number
+    itemId: string
+  }> = []
   let imageIndex = 1
 
-  // 按分类顺序收集图片
   const categoryOrder = ["日常审计", "项目进度", "其他", "本周遗留问题", "下周计划"]
   categoryOrder.forEach((category) => {
     const items = categorizedItems[category as keyof typeof categorizedItems]
@@ -50,28 +82,80 @@ export async function generateAIWeeklyReport(
             description: item.content.substring(0, 50) + (item.content.length > 50 ? "..." : ""),
             date: format(new Date(item.date), "MM月dd日", { locale: zhCN }),
             index: imageIndex++,
+            itemId: item.id,
           })
         })
       }
     })
   })
 
+  let auditSummary = ""
+  if (categorizedItems.日常审计.length > 0) {
+    const vulnSummary = Object.entries(auditStats.vulnerabilities)
+      .filter(([_, count]) => count > 0)
+      .map(([level, count]) => `${level}${count}个`)
+      .join("、")
+    auditSummary = `本周共完成${auditStats.totalCount}单审计工作。漏洞发现情况：${vulnSummary || "无漏洞"}。`
+  }
+
+  const auditDetails = categorizedItems.日常审计
+    .map((item) => {
+      let detail = item.content
+      if (item.auditCount) detail = `[${item.auditCount}单] ${detail}`
+      if (item.vulnerabilityLevel && item.vulnerabilityLevel !== "无") {
+        detail += ` (发现${item.vulnerabilityLevel}漏洞)`
+      }
+      if (item.vulnerabilityDesc) {
+        detail += ` - ${item.vulnerabilityDesc}`
+      }
+      return `- ${detail} (${format(new Date(item.date), "MM月dd日", { locale: zhCN })})`
+    })
+    .join("\n")
+
   const prompt = `
 请根据以下工作记录，生成一份专业的周报总结。周报时间范围：${weekRange}
 
+${auditSummary ? `【审计统计摘要】\n${auditSummary}\n` : ""}
+
 工作记录详情：
-${Object.entries(categorizedItems)
-  .map(
-    ([category, items]) =>
-      `${category}：\n${
-        items.length > 0
-          ? items
-              .map((item) => `- ${item.content} (${format(new Date(item.date), "MM月dd日", { locale: zhCN })})`)
-              .join("\n")
-          : "暂无"
-      }`,
-  )
-  .join("\n\n")}
+日常审计：
+${auditDetails || "暂无"}
+
+项目进度：
+${
+  categorizedItems.项目进度.length > 0
+    ? categorizedItems.项目进度
+        .map((item) => `- ${item.content} (${format(new Date(item.date), "MM月dd日", { locale: zhCN })})`)
+        .join("\n")
+    : "暂无"
+}
+
+其他：
+${
+  categorizedItems.其他.length > 0
+    ? categorizedItems.其他
+        .map((item) => `- ${item.content} (${format(new Date(item.date), "MM月dd日", { locale: zhCN })})`)
+        .join("\n")
+    : "暂无"
+}
+
+本周遗留问题：
+${
+  categorizedItems.本周遗留问题.length > 0
+    ? categorizedItems.本周遗留问题
+        .map((item) => `- ${item.content} (${format(new Date(item.date), "MM月dd日", { locale: zhCN })})`)
+        .join("\n")
+    : "暂无"
+}
+
+下周计划：
+${
+  categorizedItems.下周计划.length > 0
+    ? categorizedItems.下周计划
+        .map((item) => `- ${item.content} (${format(new Date(item.date), "MM月dd日", { locale: zhCN })})`)
+        .join("\n")
+    : "暂无"
+}
 
 请按照以下格式生成周报，严格要求：
 1. 语言专业、简洁明了
@@ -79,13 +163,14 @@ ${Object.entries(categorizedItems)
 3. 合理归纳和总结，同类工作可合并描述
 4. 保持原有的五个分类结构
 5. 如果某个分类没有内容，请写"本周暂无相关工作"
-6. **重要**：不要在文中添加任何[图片1]、[图片2]等标记，图片会自动附在周报末尾
+6. **极其重要**：绝对不要在文中添加任何图片标记，包括但不限于：[图片1]、[图片2]、[附图]、（见图X）、（如图所示）等任何与图片相关的标记或引用。图片会由系统自动处理，你只需要写纯文字内容。
 7. 使用中文回答
 8. 每个分类的内容控制在3-5条以内
+9. 日常审计部分需要包含审计总单数和漏洞统计信息
 
 格式要求：
 一、日常审计
-[整理和总结日常审计工作]
+[先写统计摘要，包括总单数和漏洞分布，然后整理具体审计工作]
 
 二、项目进度  
 [整理和总结项目进展情况]
@@ -110,12 +195,22 @@ ${Object.entries(categorizedItems)
     })
 
     const cleanedText = text
-      .replace(/\[图片\d+\]/g, "")
+      .replace(/\[图片\d*\]/g, "")
       .replace(/\[附图\d*\]/g, "")
-      .replace(/（见图\d+）/g, "")
-      .replace(/（如图\d+所示）/g, "")
+      .replace(/（见图\d*）/g, "")
+      .replace(/$$见图\d*$$/g, "")
+      .replace(/（如图\d*所示）/g, "")
+      .replace(/$$如图\d*所示$$/g, "")
+      .replace(/（如图所示）/g, "")
+      .replace(/$$如图所示$$/g, "")
       .replace(/详见附图\d*/g, "")
       .replace(/如图所示/g, "")
+      .replace(/见下图/g, "")
+      .replace(/如下图/g, "")
+      .replace(/\[image\d*\]/gi, "")
+      .replace(/\[fig\d*\]/gi, "")
+      .replace(/\[figure\d*\]/gi, "")
+      .replace(/\n{3,}/g, "\n\n") // 清理多余空行
       .trim()
 
     return {
@@ -145,6 +240,7 @@ export async function optimizeWorkContent(content: string): Promise<string> {
 3. 突出关键信息和成果
 4. 控制在100字以内
 5. 使用中文
+6. 不要添加任何图片标记或引用
 
 请直接返回优化后的内容，不需要其他说明。
 `
